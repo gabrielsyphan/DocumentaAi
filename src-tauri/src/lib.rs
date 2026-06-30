@@ -2,6 +2,7 @@ use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, CheckMenuItemBuilder, PredefinedMenuItem};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+#[cfg(target_os = "macos")]
 use std::sync::Mutex;
 
 // Tracks the PID of the app that was frontmost before quick-capture appeared,
@@ -77,14 +78,11 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::default().build())
         .plugin(tauri_plugin_process::init())
-        // Autostart: when enabled, launches with --hidden so the main window stays closed.
-        // macOS uses LaunchAgent; Windows/Linux have a different init() signature.
-        .plugin({
-            #[cfg(target_os = "macos")]
-            { tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--hidden"])) }
-            #[cfg(not(target_os = "macos"))]
-            { tauri_plugin_autostart::init(Some(vec!["--hidden"])) }
-        })
+        // MacosLauncher is required by tauri-plugin-autostart 2.x on all platforms.
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--hidden"]),
+        ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -183,14 +181,15 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error building tauri application")
-        .run(|app_handle, event| {
-            // Dock icon click: show main window, hide quick-capture
-            if let tauri::RunEvent::Reopen { .. } = event {
-                if let Some(win) = app_handle.get_webview_window("main") {
+        .run(|_app_handle, _event| {
+            // RunEvent::Reopen fires when the Dock icon is clicked (macOS-only enum variant)
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                if let Some(win) = _app_handle.get_webview_window("main") {
                     let _ = win.show();
                     let _ = win.set_focus();
                 }
-                if let Some(qc) = app_handle.get_webview_window("quick-capture") {
+                if let Some(qc) = _app_handle.get_webview_window("quick-capture") {
                     let _ = qc.hide();
                 }
             }
