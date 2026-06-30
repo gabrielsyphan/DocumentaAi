@@ -26,7 +26,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0N0YyMjZDNTNFRjU0MQpSV1JCOVQ3Rkp2SkhEcmN1Z2k2YzFYMVAySWdSQnA5RWM5YWEvMmNYb0g3UmExQWdhQ29ZbkNudwo=",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0ODA3QkJBN0RERjAyNDQKUldSRUF0OTl1bnVBTkJkdVRISjY0RExsSEMwc214MWhVQllhczREb2hJU2lBeDRLTlcxMGxWM0EK",
       "endpoints": ["https://documentaai.rovanly.com/updates/latest.json"]
     }
   },
