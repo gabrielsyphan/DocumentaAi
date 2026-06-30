@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { createHighlighter } from "shiki";
@@ -8,6 +8,10 @@ import { usePagesStore } from "../../store/pages.store";
 import { useUIStore } from "../../store/ui.store";
 import { isTauri, convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { blocksToMarkdown, printToPdf } from "../../lib/export";
+import { saveCustomTemplate, stripBlockIds } from "../../lib/templates";
+import { tagColor, normalizeTag } from "../../lib/tags";
+import { FileDown, Printer, BookTemplate, X as XIcon, Tag } from "lucide-react";
 
 // Corrige o desaparecimento do toolbar ao mover o mouse de imagem/vídeo para ele.
 // WebKit (Tauri) inicia um HTML5 drag ao clicar+mover em elementos de mídia,
@@ -205,6 +209,48 @@ export default function Editor({ pageId }: Props) {
     };
   }, [editor]);
 
+  const [showExport, setShowExport] = useState(false);
+  const [mdModal, setMdModal] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showExport) return;
+    const close = () => setShowExport(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showExport]);
+
+  function handleExportMd() {
+    setShowExport(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const md = blocksToMarkdown(page?.title ?? "documento", editor.document as any);
+    setMdModal(md);
+  }
+
+  function handleExportPdf() {
+    setShowExport(false);
+    printToPdf(page?.title ?? "documento");
+  }
+
+  async function handleCopyMd() {
+    if (!mdModal) return;
+    await navigator.clipboard.writeText(mdModal);
+  }
+
+  function handleSaveTemplate() {
+    setShowExport(false);
+    saveCustomTemplate({
+      id: crypto.randomUUID(),
+      name: page?.title || "Sem título",
+      icon: page?.emoji || "",
+      isLucideIcon: false,
+      description: `Criado a partir de "${page?.title || "Sem título"}"`,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      content: stripBlockIds(editor.document as any),
+      isCustom: true,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     updatePage(pageId, { title: e.target.value });
   }
@@ -217,18 +263,130 @@ export default function Editor({ pageId }: Props) {
   }
 
   return (
-    <div className="editor-container">
+    <>
+      <div className="editor-container">
+        <div className="editor-topbar">
+          <input
+            className="page-title-input"
+            value={page?.title ?? ""}
+            onChange={handleTitleChange}
+            onKeyDown={handleTitleKeyDown}
+            placeholder="Sem título"
+            autoFocus={!page?.title}
+          />
+          <div className="export-wrapper" onMouseDown={(e) => e.stopPropagation()}>
+            <button
+              className="export-btn"
+              onClick={() => setShowExport((v) => !v)}
+              title="Exportar página"
+            >
+              <FileDown size={15} />
+            </button>
+            {showExport && (
+              <div className="export-menu">
+                <button className="export-menu-item" onMouseDown={handleExportMd}>
+                  <FileDown size={13} /> Exportar Markdown
+                </button>
+                <button className="export-menu-item" onMouseDown={handleExportPdf}>
+                  <Printer size={13} /> Exportar PDF
+                </button>
+                <div className="export-menu-divider" />
+                <button className="export-menu-item" onMouseDown={handleSaveTemplate}>
+                  <BookTemplate size={13} /> Salvar como template
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {mdModal !== null && (
+          <div className="md-modal-overlay" onClick={() => setMdModal(null)}>
+            <div className="md-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="md-modal-header">
+                <span>Markdown — {page?.title}</span>
+                <div className="md-modal-actions">
+                  <button className="md-modal-btn" onClick={handleCopyMd}>Copiar</button>
+                  <button className="md-modal-btn" onClick={() => setMdModal(null)}>Fechar</button>
+                </div>
+              </div>
+              <textarea className="md-modal-textarea" value={mdModal} readOnly />
+            </div>
+          </div>
+        )}
+
+        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false}>
+          <FormattingToolbarController formattingToolbar={StableFormattingToolbar} />
+        </BlockNoteView>
+      </div>
+
+      <TagEditor pageId={pageId} />
+    </>
+  );
+}
+
+// ── Tag Editor ────────────────────────────────────────────────────────────────
+
+function TagEditor({ pageId }: { pageId: string }) {
+  const { pages, updatePage } = usePagesStore();
+  const page = pages.find((p) => p.id === pageId);
+  const tags = page?.tags ?? [];
+  const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function commit() {
+    const tag = normalizeTag(input);
+    if (tag && !tags.includes(tag)) {
+      updatePage(pageId, { tags: [...tags, tag] });
+    }
+    setInput("");
+  }
+
+  function remove(tag: string) {
+    updatePage(pageId, { tags: tags.filter((t) => t !== tag) });
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      commit();
+    } else if (e.key === "Backspace" && !input && tags.length > 0) {
+      remove(tags[tags.length - 1]);
+    }
+  }
+
+  return (
+    <div
+      className="tag-editor"
+      onClick={() => inputRef.current?.focus()}
+    >
+      <Tag size={12} className="tag-editor-icon" />
+      {tags.map((tag) => {
+        const color = tagColor(tag);
+        return (
+          <span
+            key={tag}
+            className="tag-chip"
+            style={{ color, background: `${color}22`, borderColor: `${color}55` }}
+          >
+            {tag}
+            <button
+              className="tag-chip-remove"
+              onMouseDown={(e) => { e.preventDefault(); remove(tag); }}
+            >
+              <XIcon size={10} />
+            </button>
+          </span>
+        );
+      })}
       <input
-        className="page-title-input"
-        value={page?.title ?? ""}
-        onChange={handleTitleChange}
-        onKeyDown={handleTitleKeyDown}
-        placeholder="Sem título"
-        autoFocus={!page?.title}
+        ref={inputRef}
+        className="tag-input"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={commit}
+        placeholder={tags.length === 0 ? "Adicionar tag..." : ""}
       />
-      <BlockNoteView editor={editor} theme={theme} formattingToolbar={false}>
-        <FormattingToolbarController formattingToolbar={StableFormattingToolbar} />
-      </BlockNoteView>
     </div>
   );
 }

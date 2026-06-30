@@ -129,53 +129,84 @@ Os comandos Rust ficam em `src-tauri/src/commands.rs` e são registrados no `mai
 - [x] Drag-and-drop para reordenar páginas
 - [x] Favoritos/estrelas
 
-### Fase 3 — Integração MCP (próxima)
-- [ ] Servidor MCP via **stdio** (Opção A): processo Node.js separado que lê/escreve
-      diretamente no SQLite do DocumentaAI
-- [ ] Ferramentas a expor: `list_pages`, `get_page`, `search_pages`, `create_page`,
-      `update_page`, `delete_page`
-- [ ] Stack: `@modelcontextprotocol/sdk` + `better-sqlite3`; pasta `mcp-server/` na raiz
-- [ ] O AI tool (Claude Code, Kiro) spawna o processo automaticamente via config
-      `~/.claude.json` — app não precisa estar aberto
-- [ ] Conteúdo trafega como BlockNote JSON (a IA lê e escreve o mesmo formato do editor)
+### Fase 3 — Integração MCP ✅ concluída
+- [x] Servidor MCP via **stdio** em `mcp-server/` — `@modelcontextprotocol/sdk` + `better-sqlite3`
+- [x] Ferramentas: `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`, `delete_page`
+- [x] Lê o banco em `~/Library/Application Support/com.documentaai.app/documentaai.db` (macOS)
+      ou via variável de ambiente `DOCUMENTAAI_DB_PATH`
+- [x] Conteúdo trafega como BlockNote JSON; texto plain também é aceito no `create_page`
+- [x] Botão de refresh manual (ícone ↻) no rodapé da sidebar com animação de spin
+- [x] Auto-refresh ao ganhar foco — ao voltar para o app após usar MCP via Claude/Kiro,
+      a sidebar recarrega as páginas automaticamente (`window.addEventListener('focus', load)`)
+
+**Para usar no Claude Code** — adicionar em `~/.claude.json`:
+```json
+{
+  "mcpServers": {
+    "documentaai": {
+      "command": "node",
+      "args": ["/caminho/para/documentaai/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+**Setup inicial** (só uma vez):
+```bash
+cd mcp-server && npm install && npm run build
+```
 
 ### Fase 4 — Produtividade offline (features de alto impacto)
 
-#### Daily Notes
-- [ ] Botão/atalho na sidebar que abre (ou cria) a página do dia atual
-- [ ] Nomenclatura automática por data (ex: `2025-06-30`)
-- [ ] Seção dedicada "Daily Notes" na sidebar separada das páginas normais
+#### Daily Notes ✅ concluída
+- [x] Seção "Daily Notes" na sidebar separada das páginas normais (últimas 7 notas)
+- [x] Botão "Hoje" que cria ou abre a nota do dia (título `YYYY-MM-DD`, emoji 📅)
+- [x] Nota de hoje marcada com badge "hoje" e ponto cheio ●
+- [x] Coluna `type TEXT DEFAULT 'document'` adicionada ao SQLite com migração automática
+      (valores: `'document'` | `'daily'` | `'canvas'`)
+- [x] Daily notes filtradas da árvore principal de páginas
 
-#### Templates
-- [ ] Galeria de templates pré-prontos: reunião, review semanal, planejamento de projeto,
-      bullet journal, anotações de estudo
-- [ ] Usuário cria página a partir de template (JSON BlockNote pré-montado)
-- [ ] Permitir salvar qualquer página existente como template personalizado
+#### Export ✅ concluído
+- [x] Ícone de export aparece ao passar o mouse no título da página
+- [x] Export para **Markdown** — serializa BlockNote JSON em `.md` com suporte a
+      títulos, listas, checkboxes, negrito, itálico, links, código e blocos de código
+- [x] Export para **PDF** via `window.print()` com título da página como nome do arquivo
+- [x] Utilitário em `src/lib/export.ts`
 
-#### Tags
-- [ ] Labels coloridas em páginas (`#trabalho`, `#pessoal`, `#ideia`, etc.)
-- [ ] Filtrar/buscar páginas por tag
-- [ ] Nova coluna `tags TEXT` no SQLite (array JSON)
-- [ ] Complementa a hierarquia — uma página pode ter múltiplos contextos sem duplicar
+#### Templates ✅ concluído
+- [x] Galeria de templates pré-prontos: Reunião, Review Semanal, Planejamento de Projeto,
+      Bullet Journal, Anotações de Estudo — em `src/lib/templates.ts`
+- [x] Botão "Templates" na sidebar abre o modal `TemplateGallery`
+- [x] Cria página com título, emoji e conteúdo do template (IDs de bloco removidos para
+      evitar conflitos — `stripBlockIds`)
+- [x] Opção "Salvar como template" no menu de exportar do editor (persiste em `localStorage`)
+- [x] Seção "Meus templates" na galeria com botão de excluir
 
-#### Export
-- [ ] Export para **PDF** (via `window.print()` com CSS de impressão limpo)
-- [ ] Export para **Markdown** (serializar BlockNote JSON → `.md`)
-- [ ] Export de página única ou subárvore inteira
+#### Tags ✅ concluído
+- [x] Coluna `tags TEXT NOT NULL DEFAULT '[]'` no SQLite com migração automática
+- [x] `Page.tags: string[]` no frontend — serializado/parseado em `db.ts`
+- [x] `TagEditor` inline abaixo do título no editor: chips coloridos, Enter/vírgula adiciona, Backspace remove, blur confirma
+- [x] Cores determinísticas por nome da tag via hash (`src/lib/tags.ts`)
+- [x] Seção "Tags" na sidebar mostra todas as tags únicas como chips clicáveis
+- [x] Clicar numa tag filtra a lista de páginas; clicar novamente limpa o filtro
 
-#### Canvas / Whiteboard (Excalidraw)
-- [ ] Novo tipo de página: `type TEXT DEFAULT 'document'` na tabela `pages`
-      (valores possíveis: `'document'` | `'canvas'`)
-- [ ] Ao criar página, usuário escolhe entre Documento (BlockNote) ou Canvas (Excalidraw)
-- [ ] Ícone diferente na sidebar para distinguir os dois tipos (ex: 🖼️ vs 📄)
-- [ ] Renderizar `@excalidraw/excalidraw` quando `type === 'canvas'`
-- [ ] Estado do canvas salvo como JSON na coluna `content` — mesmo mecanismo de
-      debounce/autosave já existente
-- [ ] Export do canvas para PNG/SVG (Excalidraw já oferece nativamente)
-- [ ] Alternativa avaliada: `@tldraw/tldraw` (UI mais polida, mesmo modelo de dados)
-- [ ] Casos de uso: diagramas de arquitetura, fluxogramas, mapas mentais, esboços
+#### Canvas / Whiteboard (Excalidraw) ✅ concluído
+- [x] Botão "Nova página" abre picker (Documento / Canvas) — ⌘N continua criando documento
+- [x] Ícone `PenTool` na sidebar para páginas do tipo `'canvas'`
+- [x] `CanvasEditor.tsx` renderiza `@excalidraw/excalidraw` (lazy-loaded ~2 MB) quando `type === 'canvas'`
+- [x] Estado salvo como `{ elements, appState, files }` JSON na coluna `content` com debounce de 600 ms
+- [x] Export para PNG/SVG/JSON disponível nativamente pela toolbar do Excalidraw
+- [x] Tema claro/escuro sincronizado com o restante do app
 
 ### Fase 5 — Qualidade de escrita
+
+#### Leitura em voz alta (Text-to-Speech)
+- [ ] Botão "Ler em voz alta" no header da página
+- [ ] Usa **Web Speech API** (`window.speechSynthesis`) — gratuito, offline, sem dependências,
+      nativo no WebKit/Tauri; no macOS usa as vozes da Apple (ex: Luciana em PT-BR)
+- [ ] Extrai texto puro do BlockNote JSON (ignora URLs de imagem, blocos de código, etc.)
+- [ ] Controles: play/pause/stop e velocidade de leitura
+- [ ] Destaque visual do parágrafo sendo lido (via eventos `onboundary` da API)
+- [ ] Seleção de voz disponível no sistema (a API lista todas as vozes instaladas)
 
 #### Focus mode
 - [ ] Tela cheia sem sidebar, tipografia maior, zero distrações

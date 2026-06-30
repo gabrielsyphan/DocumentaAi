@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ChevronRight, ChevronDown, Plus, Trash2, FileText, X, Check, Star } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Trash2, FileText, PenTool, X, Check, Star } from "lucide-react";
 import type { PageWithChildren } from "../../types";
 import { usePagesStore } from "../../store/pages.store";
 import { useDragCtx } from "./DragContext";
@@ -120,7 +120,7 @@ export default function PageItem({ page, depth }: Props) {
             </button>
 
             <span className="page-item-emoji">
-              {page.emoji ?? <FileText size={13} />}
+              {page.emoji ?? (page.type === "canvas" ? <PenTool size={13} /> : <FileText size={13} />)}
             </span>
 
             <span className="page-item-title">{page.title || "Sem título"}</span>

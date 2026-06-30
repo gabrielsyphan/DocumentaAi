@@ -26,7 +26,8 @@ interface PagesState {
   selectedPageId: string | null;
   loading: boolean;
   load: () => Promise<void>;
-  createPage: (parentId?: string) => Promise<Page>;
+  createPage: (parentId?: string, overrides?: { title?: string; emoji?: string; content?: string; type?: Page["type"] }) => Promise<Page>;
+  createDailyNote: () => Promise<Page>;
   updatePage: (id: string, updates: Partial<Page>) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   movePage: (draggedId: string, targetId: string, position: "before" | "after") => Promise<void>;
@@ -43,25 +44,55 @@ export const usePagesStore = create<PagesState>((set, get) => ({
   load: async () => {
     set({ loading: true });
     const pages = await fetchAllPages();
-    set({ pages, tree: buildTree(pages), loading: false });
+    set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")), loading: false });
   },
 
-  createPage: async (parentId) => {
+  createPage: async (parentId, overrides) => {
     const now = new Date().toISOString();
     const page: Page = {
       id: crypto.randomUUID(),
       parent_id: parentId ?? null,
-      title: "Sem título",
-      emoji: null,
-      content: null,
+      title: overrides?.title ?? "Sem título",
+      emoji: overrides?.emoji ?? null,
+      content: overrides?.content ?? null,
       order_index: Date.now(),
       is_favorite: 0,
+      type: overrides?.type ?? "document",
+      tags: [],
       created_at: now,
       updated_at: now,
     };
     await upsertPage(page);
     const pages = [...get().pages, page];
-    set({ pages, tree: buildTree(pages), selectedPageId: page.id });
+    set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")), selectedPageId: page.id });
+    return page;
+  },
+
+  createDailyNote: async () => {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const { pages } = get();
+    const existing = pages.find((p) => p.type === "daily" && p.title === today);
+    if (existing) {
+      set({ selectedPageId: existing.id });
+      return existing;
+    }
+    const now = new Date().toISOString();
+    const page: Page = {
+      id: crypto.randomUUID(),
+      parent_id: null,
+      title: today,
+      emoji: "📅",
+      content: null,
+      order_index: Date.now(),
+      is_favorite: 0,
+      type: "daily",
+      tags: [],
+      created_at: now,
+      updated_at: now,
+    };
+    await upsertPage(page);
+    const newPages = [...pages, page];
+    set({ pages: newPages, tree: buildTree(newPages.filter((p) => p.type !== "daily")), selectedPageId: page.id });
     return page;
   },
 
@@ -71,7 +102,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     );
     const updated = pages.find((p) => p.id === id)!;
     await upsertPage(updated);
-    set({ pages, tree: buildTree(pages) });
+    set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")) });
   },
 
   deletePage: async (id) => {
@@ -80,7 +111,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     const { selectedPageId } = get();
     set({
       pages,
-      tree: buildTree(pages),
+      tree: buildTree(pages.filter((p) => p.type !== "daily")),
       selectedPageId: selectedPageId === id ? null : selectedPageId,
     });
   },
@@ -108,7 +139,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     const updated = { ...dragged, parent_id: target.parent_id, order_index: newIndex };
     await upsertPage(updated);
     const newPages = pages.map((p) => (p.id === draggedId ? updated : p));
-    set({ pages: newPages, tree: buildTree(newPages) });
+    set({ pages: newPages, tree: buildTree(newPages.filter((p) => p.type !== "daily")) });
   },
 
   toggleFavorite: async (id) => {
@@ -117,7 +148,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     const updated = { ...page, is_favorite: page.is_favorite ? 0 : 1 };
     await upsertPage(updated);
     const newPages = pages.map((p) => (p.id === id ? updated : p));
-    set({ pages: newPages, tree: buildTree(newPages) });
+    set({ pages: newPages, tree: buildTree(newPages.filter((p) => p.type !== "daily")) });
   },
 
   selectPage: (id) => set({ selectedPageId: id }),

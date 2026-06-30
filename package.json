@@ -13,6 +13,7 @@
     "@blocknote/core": "^0.30.0",
     "@blocknote/mantine": "^0.30.0",
     "@blocknote/react": "^0.30.0",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@mantine/core": "^7",
     "@mantine/hooks": "^7",
     "@tauri-apps/api": "^2",

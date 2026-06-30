@@ -3,12 +3,16 @@ import { FileText } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
 import Sidebar from "../sidebar/Sidebar";
 import Editor from "../editor/Editor";
+import CanvasEditor from "../editor/CanvasEditor";
 import SearchModal from "../search/SearchModal";
+import TemplateGallery from "../templates/TemplateGallery";
 import UpdateBanner from "./UpdateBanner";
 
 export default function AppShell() {
-  const { selectedPageId, createPage } = usePagesStore();
+  const { selectedPageId, pages, createPage } = usePagesStore();
+  const selectedPage = pages.find((p) => p.id === selectedPageId);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -38,11 +42,12 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      <Sidebar onSearch={() => setSearchOpen(true)} />
+      <Sidebar onSearch={() => setSearchOpen(true)} onTemplates={() => setTemplatesOpen(true)} />
 
       <main className="editor-area">
-        {selectedPageId ? (
-          // key força remontagem do editor ao trocar de página
+        {selectedPageId && selectedPage?.type === "canvas" ? (
+          <CanvasEditor key={selectedPageId} pageId={selectedPageId} />
+        ) : selectedPageId ? (
           <Editor key={selectedPageId} pageId={selectedPageId} />
         ) : (
           <div className="empty-state">
@@ -56,6 +61,7 @@ export default function AppShell() {
       </main>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <TemplateGallery open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <UpdateBanner />
     </div>
   );
