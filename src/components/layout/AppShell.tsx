@@ -4,6 +4,7 @@ import { usePagesStore } from "../../store/pages.store";
 import Sidebar from "../sidebar/Sidebar";
 import Editor from "../editor/Editor";
 import SearchModal from "../search/SearchModal";
+import UpdateBanner from "./UpdateBanner";
 
 export default function AppShell() {
   const { selectedPageId, createPage } = usePagesStore();
@@ -55,6 +56,7 @@ export default function AppShell() {
       </main>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <UpdateBanner />
     </div>
   );
 }

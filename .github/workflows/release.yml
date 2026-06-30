@@ -49,12 +49,14 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install frontend dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: DocumentaAI ${{ github.ref_name }}
@@ -66,7 +68,99 @@ jobs:
             | macOS Apple Silicon | `DocumentaAI_*_aarch64.dmg` |
             | macOS Intel | `DocumentaAI_*_x64.dmg` |
             | Windows | `DocumentaAI_*_x64-setup.exe` |
-            | Linux | `DocumentaAI_*_amd64.AppImage` ou `.deb` |
+            | Linux | `DocumentaAI_*_amd64.AppImage` |
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
+
+  update-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate and deploy latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VPS_PASS: ${{ secrets.VPS_PASS }}
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          VERSION=${TAG#v}
+          REPO="gabrielsyphan/documentaai"
+          BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
+
+          echo "Fetching release assets for ${TAG}..."
+          ASSETS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}" \
+            | python3 -c "
+          import json, sys
+          r = json.load(sys.stdin)
+          for a in r.get('assets', []):
+              print(a['name'])
+          ")
+
+          echo "Assets found:"
+          echo "$ASSETS"
+
+          get_sig() {
+            local name="$1"
+            local sig_name="${name}.sig"
+            if echo "$ASSETS" | grep -q "^${sig_name}$"; then
+              curl -sL -H "Authorization: Bearer $GITHUB_TOKEN" \
+                "${BASE_URL}/${sig_name}"
+            fi
+          }
+
+          SIG_MACOS_ARM=$(get_sig "DocumentaAI_${VERSION}_aarch64.app.tar.gz")
+          SIG_MACOS_X64=$(get_sig "DocumentaAI_${VERSION}_x64.app.tar.gz")
+          SIG_WIN=$(get_sig "DocumentaAI_${VERSION}_x64-setup.nsis.zip")
+          SIG_LINUX=$(get_sig "DocumentaAI_${VERSION}_amd64.AppImage.tar.gz")
+
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          python3 - <<PYEOF
+          import json
+          version = "${VERSION}"
+          tag = "${TAG}"
+          pub_date = "${PUB_DATE}"
+          base = "https://github.com/gabrielsyphan/documentaai/releases/download/${TAG}"
+
+          data = {
+            "version": version,
+            "notes": f"DocumentaAI {tag}",
+            "pub_date": pub_date,
+            "platforms": {}
+          }
+
+          sigs = {
+            "darwin-aarch64": ("${SIG_MACOS_ARM}", f"{base}/DocumentaAI_{version}_aarch64.app.tar.gz"),
+            "darwin-x86_64":  ("${SIG_MACOS_X64}",  f"{base}/DocumentaAI_{version}_x64.app.tar.gz"),
+            "windows-x86_64": ("${SIG_WIN}",         f"{base}/DocumentaAI_{version}_x64-setup.nsis.zip"),
+            "linux-x86_64":   ("${SIG_LINUX}",       f"{base}/DocumentaAI_{version}_amd64.AppImage.tar.gz"),
+          }
+
+          for platform, (sig, url) in sigs.items():
+            if sig.strip():
+              data["platforms"][platform] = {"signature": sig.strip(), "url": url}
+
+          print(json.dumps(data, indent=2))
+          with open("latest.json", "w") as f:
+            json.dump(data, f, indent=2)
+          PYEOF
+
+          echo "Generated latest.json:"
+          cat latest.json
+
+          echo "Uploading to VPS..."
+          sshpass -p "$VPS_PASS" ssh \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            root@2.25.203.118 \
+            "mkdir -p /var/www/documentai/updates"
+
+          sshpass -p "$VPS_PASS" scp \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            latest.json \
+            root@2.25.203.118:/var/www/documentai/updates/latest.json
+
+          echo "Done — latest.json deployed."
