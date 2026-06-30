@@ -412,7 +412,7 @@ html, body, #root {
 .page-title-input {
   display: block;
   width: 100%;
-  max-width: 760px;
+  max-width: clamp(640px, 82%, 1200px);
   margin: 0 auto 6px;
   padding: 0 56px;
   font-size: 36px;
@@ -626,10 +626,20 @@ html, body, #root {
 }
 
 .bn-editor {
-  max-width: 760px !important;
+  max-width: clamp(640px, 82%, 1200px) !important;
   margin: 0 auto !important;
   padding: 0 56px !important;
   color: var(--editor-text) !important;
   background: transparent !important;
   font-size: 15px !important;
+}
+
+/* Impede que o WebKit inicie um drag nativo ao clicar+mover em mídia dentro do editor.
+   Sem isso, o browser dispara dragstart na <img>/<video> que borbulha até pmView.dom
+   onde o dragHandler do BlockNote esconde o toolbar flutuante. */
+.bn-editor img,
+.bn-editor video,
+.bn-editor audio {
+  -webkit-user-drag: none;
+  user-select: none;
 }

@@ -1,11 +1,65 @@
 import { useEffect, useRef } from "react";
-import { useCreateBlockNote } from "@blocknote/react";
+import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { createHighlighter } from "shiki";
 import type { CodeBlockOptions } from "@blocknote/core";
 import "@blocknote/mantine/style.css";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore } from "../../store/ui.store";
+import { isTauri, convertFileSrc } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+// Corrige o desaparecimento do toolbar ao mover o mouse de imagem/vídeo para ele.
+// WebKit (Tauri) inicia um HTML5 drag ao clicar+mover em elementos de mídia,
+// disparando dragstart que borbulha até pmView.dom onde BlockNote esconde o toolbar.
+// A solução substitui o dragHandler por um que ignora drags iniciados em mídia.
+function StableFormattingToolbar() {
+  const editor = useBlockNoteEditor();
+
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ftView = (editor.formattingToolbar as any).view;
+    const pmDom = editor.prosemirrorView?.dom;
+    if (!ftView || !pmDom) return;
+
+    const MEDIA_TAGS = new Set(["IMG", "VIDEO", "AUDIO", "SOURCE"]);
+    const MEDIA_SELECTOR =
+      '.bn-visual-media-wrapper, .bn-file-block-content-wrapper, ' +
+      '[data-content-type="image"], [data-content-type="video"], [data-content-type="audio"]';
+
+    const original: () => void = ftView.dragHandler;
+
+    const safe = (e: Event) => {
+      const target = e.target as HTMLElement;
+      // O dragstart pode ter como target qualquer elemento dentro do bloco de mídia
+      // (a <img> em si, o div.bn-visual-media-wrapper, ou o wrapper externo).
+      // Usamos closest() para cobrir todos os casos.
+      const isMediaDrag =
+        MEDIA_TAGS.has(target.tagName) ||
+        !!target.closest?.(MEDIA_SELECTOR);
+
+      if (isMediaDrag) {
+        e.preventDefault(); // cancela o drag nativo
+        return;             // não esconde o toolbar
+      }
+      original();
+    };
+
+    pmDom.removeEventListener("dragstart", original);
+    pmDom.removeEventListener("dragover", original);
+    pmDom.addEventListener("dragstart", safe);
+    pmDom.addEventListener("dragover", safe);
+
+    return () => {
+      pmDom.removeEventListener("dragstart", safe);
+      pmDom.removeEventListener("dragover", safe);
+      pmDom.addEventListener("dragstart", original);
+      pmDom.addEventListener("dragover", original);
+    };
+  }, [editor]);
+
+  return <FormattingToolbar />;
+}
 
 interface Props {
   pageId: string;
@@ -60,8 +114,18 @@ export default function Editor({ pageId }: Props) {
     }
   })();
 
+  async function uploadFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   const editor = useCreateBlockNote({
     initialContent,
+    uploadFile,
     codeBlock: {
       defaultLanguage: "text",
       supportedLanguages: SUPPORTED_LANGUAGES,
@@ -82,6 +146,64 @@ export default function Editor({ pageId }: Props) {
       clearTimeout(saveTimer.current);
     };
   }, [editor, pageId]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif", "tiff"]);
+    const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "avi"]);
+    const AUDIO_EXTS = new Set(["mp3", "wav", "ogg", "m4a", "flac"]);
+
+    async function insertDroppedFiles(paths: string[]) {
+      for (const path of paths) {
+        const ext = path.split(".").pop()?.toLowerCase() ?? "";
+        const type = IMAGE_EXTS.has(ext) ? "image"
+          : VIDEO_EXTS.has(ext) ? "video"
+          : AUDIO_EXTS.has(ext) ? "audio"
+          : null;
+        if (!type) continue;
+
+        try {
+          const url = convertFileSrc(path);
+          const blob = await fetch(url).then((r) => r.blob());
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          const lastBlock = editor.document[editor.document.length - 1];
+          editor.insertBlocks(
+            [{ type, props: { url: base64 } } as Parameters<typeof editor.insertBlocks>[0][0]],
+            lastBlock,
+            "after",
+          );
+        } catch (err) {
+          console.error("Erro ao inserir arquivo arrastado:", path, err);
+        }
+      }
+    }
+
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    getCurrentWindow()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === "drop") {
+          insertDroppedFiles(event.payload.paths);
+        }
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [editor]);
 
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     updatePage(pageId, { title: e.target.value });
@@ -104,7 +226,9 @@ export default function Editor({ pageId }: Props) {
         placeholder="Sem título"
         autoFocus={!page?.title}
       />
-      <BlockNoteView editor={editor} theme={theme} />
+      <BlockNoteView editor={editor} theme={theme} formattingToolbar={false}>
+        <FormattingToolbarController formattingToolbar={StableFormattingToolbar} />
+      </BlockNoteView>
     </div>
   );
 }

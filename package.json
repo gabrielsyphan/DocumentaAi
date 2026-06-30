@@ -31,6 +31,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
+    "playwright": "^1.61.1",
     "tailwindcss": "^4",
     "typescript": "^5.7",
     "vite": "^6"
