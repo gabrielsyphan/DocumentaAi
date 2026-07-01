@@ -1,5 +1,63 @@
-import { useCallback, useEffect, useState } from "react";
-import { FileText, Minimize2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useState, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
+import { FileText, Minimize2, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw } from "lucide-react";
+
+class EditorErrorBoundary extends Component<
+  { children: ReactNode; pageId: string },
+  { error: Error | null }
+> {
+  constructor(props: { children: ReactNode; pageId: string }) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[EditorErrorBoundary] crash ao abrir página:", error, info);
+  }
+
+  componentDidUpdate(prev: { pageId: string }) {
+    if (prev.pageId !== this.props.pageId && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", height: "100%", gap: 16,
+          color: "#787774", fontFamily: "inherit",
+        }}>
+          <AlertTriangle size={28} style={{ color: "#f87171" }} />
+          <p style={{ fontSize: 15, color: "#e8e8e6" }}>Erro ao carregar o editor</p>
+          <pre style={{
+            fontSize: 11, color: "#787774", background: "#1a1a1a",
+            padding: "10px 16px", borderRadius: 8, maxWidth: 560,
+            whiteSpace: "pre-wrap", wordBreak: "break-all",
+          }}>
+            {this.state.error.message}
+          </pre>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 16px", borderRadius: 7, border: "1px solid #3a3a3a",
+              background: "transparent", color: "#e8e8e6", fontSize: 13, cursor: "pointer",
+            }}
+          >
+            <RotateCcw size={13} /> Tentar novamente
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore } from "../../store/ui.store";
 import Sidebar from "../sidebar/Sidebar";
@@ -104,11 +162,17 @@ export default function AppShell() {
         )}
 
         {selectedPageId && selectedPage?.type === "canvas" ? (
-          <CanvasEditor key={selectedPageId} pageId={selectedPageId} />
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId}>
+            <CanvasEditor pageId={selectedPageId} />
+          </EditorErrorBoundary>
         ) : selectedPageId && selectedPage?.type === "folder" ? (
-          <FolderView key={selectedPageId} pageId={selectedPageId} />
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId}>
+            <FolderView pageId={selectedPageId} />
+          </EditorErrorBoundary>
         ) : selectedPageId ? (
-          <Editor key={selectedPageId} pageId={selectedPageId} />
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId}>
+            <Editor pageId={selectedPageId} />
+          </EditorErrorBoundary>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
