@@ -128,8 +128,8 @@ jobs:
           echo "========================="
 
           SIG_MAC_NAME=$(echo "$ASSETS" | jq -r '[.assets[].name | select(endswith(".app.tar.gz.sig"))] | .[0] // ""')
-          SIG_WIN_NAME=$(echo "$ASSETS" | jq -r '[.assets[].name | select(endswith(".nsis.zip.sig"))] | .[0] // ""')
-          SIG_LIN_NAME=$(echo "$ASSETS" | jq -r '[.assets[].name | select(endswith(".AppImage.tar.gz.sig"))] | .[0] // ""')
+          SIG_WIN_NAME=$(echo "$ASSETS" | jq -r '[.assets[].name | select(endswith("-setup.exe.sig"))] | .[0] // ""')
+          SIG_LIN_NAME=$(echo "$ASSETS" | jq -r '[.assets[].name | select(endswith(".AppImage.sig"))] | .[0] // ""')
 
           echo "Mac sig: $SIG_MAC_NAME"
           echo "Win sig: $SIG_WIN_NAME"
@@ -179,5 +179,5 @@ jobs:
             exit 1
           fi
 
-          gh release upload "$TAG" latest.json --clobber
+          gh release upload "$TAG" latest.json --repo "$REPO" --clobber
           echo "latest.json publicado no release $TAG"
