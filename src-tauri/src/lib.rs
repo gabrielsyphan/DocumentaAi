@@ -8,7 +8,7 @@ use std::sync::Mutex;
 // ── Speech recognition (macOS only) ──────────────────────────────────────────
 #[cfg(target_os = "macos")]
 mod speech {
-    use objc::{class, msg_send, sel, sel_impl, runtime::Object};
+    use objc::{msg_send, sel, sel_impl, runtime::{Class, Object}};
     use block::ConcreteBlock;
     use std::sync::Mutex;
     use std::time::Duration;
@@ -19,146 +19,165 @@ mod speech {
     extern "C" {}
 
     struct Session {
-        engine:     usize, // *mut Object (retained)
-        task:       usize, // *mut Object (retained)
-        input_node: usize, // *mut Object (not retained — owned by engine)
-        recognizer: usize, // *mut Object (retained)
-        request:    usize, // *mut Object (retained)
+        engine:     usize,
+        task:       usize,
+        input_node: usize,
+        recognizer: usize,
+        request:    usize,
         app:        AppHandle,
     }
-    // Safety: we control all ObjC pointer access through the Mutex.
     unsafe impl Send for Session {}
 
     static ACTIVE: Mutex<Option<Session>> = Mutex::new(None);
 
-    // ── Authorization — can run on any thread ─────────────────────────────────
-    pub fn request_auth() -> Result<(), String> {
-        let (tx, rx) = std::sync::mpsc::channel::<isize>();
-        let auth_block = ConcreteBlock::new(move |status: isize| {
-            let _ = tx.send(status);
-        });
-        let auth_block = auth_block.copy();
-        unsafe {
-            let _: () = msg_send![class!(SFSpeechRecognizer), requestAuthorization: &*auth_block];
-        }
-        // SFSpeechRecognizerAuthorizationStatusAuthorized = 3
-        match rx.recv_timeout(Duration::from_secs(60)) {
-            Ok(3) => Ok(()),
-            Ok(s) => Err(format!(
-                "Reconhecimento de voz não autorizado (status {s}). \
-                 Verifique Ajustes do Sistema → Privacidade → Reconhecimento de Fala."
-            )),
-            Err(_) => Err("Tempo esgotado aguardando autorização.".to_string()),
-        }
+    // Returns a class or an Err — never panics (unlike class!() which panics on missing class)
+    fn cls(name: &str) -> Result<*const Class, String> {
+        Class::get(name)
+            .map(|c| c as *const Class)
+            .ok_or_else(|| format!("Classe ObjC '{name}' não encontrada. \
+                O app pode precisar ser recompilado com suporte ao framework."))
     }
 
-    // ── Start — must run setup on the main thread ─────────────────────────────
+    // ── Authorization — dispatched to main thread ─────────────────────────────
+    // Apple docs: "Call this method from the main application thread."
+    pub fn request_auth(app: AppHandle) -> Result<(), String> {
+        let sf_cls = cls("SFSpeechRecognizer")?; // verify framework is linked before dispatch
+
+        let (tx, rx) = std::sync::mpsc::channel::<Result<(), String>>();
+        let sf_cls_addr = sf_cls as usize; // usize is Send
+
+        app.run_on_main_thread(move || {
+            let sf = sf_cls_addr as *const Class;
+
+            // Check current status synchronously first (avoids the dialog if already granted)
+            // SFSpeechRecognizerAuthorizationStatus: NotDetermined=0, Denied=1, Restricted=2, Authorized=3
+            let status: isize = unsafe { msg_send![sf, authorizationStatus] };
+            if status == 3 {
+                let _ = tx.send(Ok(()));
+                return;
+            }
+            if status == 1 || status == 2 {
+                let _ = tx.send(Err(
+                    "Permissão de reconhecimento de fala negada. \
+                     Verifique Ajustes do Sistema → Privacidade → Reconhecimento de Fala.".to_string()
+                ));
+                return;
+            }
+
+            // Not determined — show the system dialog
+            let tx2 = tx.clone();
+            let auth_block = ConcreteBlock::new(move |new_status: isize| {
+                if new_status == 3 {
+                    let _ = tx2.send(Ok(()));
+                } else {
+                    let _ = tx2.send(Err(format!(
+                        "Reconhecimento de voz não autorizado (status {new_status})."
+                    )));
+                }
+            });
+            let auth_block = auth_block.copy();
+            unsafe { let _: () = msg_send![sf, requestAuthorization: &*auth_block]; }
+        }).map_err(|e| format!("run_on_main_thread falhou: {e}"))?;
+
+        rx.recv_timeout(Duration::from_secs(60))
+            .map_err(|_| "Tempo esgotado aguardando autorização.".to_string())?
+    }
+
+    // ── Start — all ObjC setup on main thread ─────────────────────────────────
     pub fn start(app: AppHandle) -> Result<(), String> {
-        let mut lock = ACTIVE.lock().map_err(|_| "Erro interno de mutex")?;
-        if lock.is_some() {
-            return Err("Já está transcrevendo".to_string());
-        }
+        // Verify classes exist before dispatching (errors propagate cleanly here)
+        cls("SFSpeechRecognizer")?;
+        cls("SFSpeechAudioBufferRecognitionRequest")?;
+        cls("AVAudioEngine")?;
+
+        let mut lock = ACTIVE.lock().map_err(|_| "Mutex error")?;
+        if lock.is_some() { return Err("Já está transcrevendo".to_string()); }
 
         let (tx, rx) = std::sync::mpsc::channel::<Result<Session, String>>();
-        let app_for_setup = app.clone();
+        let app_setup = app.clone();
 
-        // SFSpeechRecognizer and installTapOnBus: must be called on the main thread.
-        // run_on_main_thread dispatches to the Tauri event loop — we await via channel.
         app.run_on_main_thread(move || {
-            let result = unsafe { setup_session(app_for_setup) };
-            let _ = tx.send(result);
-        }).map_err(|e| format!("Falha ao despachar para main thread: {e}"))?;
+            let _ = tx.send(unsafe { setup_session(app_setup) });
+        }).map_err(|e| format!("run_on_main_thread: {e}"))?;
 
         let session = rx
             .recv_timeout(Duration::from_secs(15))
-            .map_err(|_| "Timeout ao iniciar reconhecimento de fala.".to_string())??;
+            .map_err(|_| "Timeout ao iniciar reconhecimento.".to_string())??;
 
         *lock = Some(session);
         Ok(())
     }
 
-    // ── Actual setup — called on the main thread ──────────────────────────────
     unsafe fn setup_session(app: AppHandle) -> Result<Session, String> {
-        // Autorelease pool: methods like inputNode / outputFormatForBus: return
-        // autoreleased objects that need a pool on non-main-thread call paths.
-        // We're on the main thread now, but keep the pool for explicitness.
-        let pool: *mut Object = msg_send![class!(NSAutoreleasePool), new];
+        let nsa_cls  = cls("NSAutoreleasePool")?;
+        let sf_cls   = cls("SFSpeechRecognizer")?;
+        let req_cls  = cls("SFSpeechAudioBufferRecognitionRequest")?;
+        let eng_cls  = cls("AVAudioEngine")?;
 
-        let recognizer: *mut Object = msg_send![class!(SFSpeechRecognizer), new];
+        let pool: *mut Object = msg_send![nsa_cls, new];
+
+        let recognizer: *mut Object = msg_send![sf_cls, new];
         if recognizer.is_null() {
             let _: () = msg_send![pool, drain];
-            return Err("Não foi possível criar SFSpeechRecognizer. \
-                        Verifique se o idioma do sistema é suportado.".to_string());
+            return Err("SFSpeechRecognizer retornou nil — idioma não suportado?".to_string());
         }
 
-        let request: *mut Object = msg_send![class!(SFSpeechAudioBufferRecognitionRequest), new];
+        let request: *mut Object = msg_send![req_cls, new];
         let _: () = msg_send![request, setShouldReportPartialResults: true as i8];
 
-        let engine: *mut Object     = msg_send![class!(AVAudioEngine), new];
+        let engine: *mut Object     = msg_send![eng_cls, new];
         let input_node: *mut Object = msg_send![engine, inputNode];
         let format: *mut Object     = msg_send![input_node, outputFormatForBus: 0usize];
+        let _: () = msg_send![format, retain]; // survive pool drain
 
-        // Retain format so it survives the pool drain below
-        let _: () = msg_send![format, retain];
-
-        // Tap block — feeds audio buffers into the recognition request.
-        // Captures request_ptr (usize = Copy) so the closure is Clone.
+        // Tap block: feeds PCM buffers into the recognition request
         let request_ptr = request as usize;
-        let tap_block = ConcreteBlock::new(move |buffer: *mut Object, _when: *mut Object| {
+        let tap_block = ConcreteBlock::new(move |buf: *mut Object, _when: *mut Object| {
             unsafe {
-                let req = request_ptr as *mut Object;
-                let _: () = msg_send![req, appendAudioPCMBuffer: buffer];
+                let _: () = msg_send![request_ptr as *mut Object, appendAudioPCMBuffer: buf];
             }
         });
         let tap_block = tap_block.copy();
-
         let _: () = msg_send![input_node,
             installTapOnBus: 0usize
             bufferSize: 4096u32
             format: format
             block: &*tap_block
         ];
-
-        // Release the extra retain now that it's installed in the engine
         let _: () = msg_send![format, release];
 
-        // Result handler — emits Tauri events with the transcribed text
-        let app_for_block = app.clone();
-        let result_block = ConcreteBlock::new(move |result: *mut Object, _error: *mut Object| {
+        // Result handler block: emits events to the frontend
+        let app_cb = app.clone();
+        let result_block = ConcreteBlock::new(move |result: *mut Object, _err: *mut Object| {
             if result.is_null() { return; }
             unsafe {
-                let is_final: i8          = msg_send![result, isFinal];
-                let tr: *mut Object       = msg_send![result, bestTranscription];
-                let ns: *mut Object       = msg_send![tr, formattedString];
+                let is_final: i8 = msg_send![result, isFinal];
+                let tr: *mut Object = msg_send![result, bestTranscription];
+                let ns: *mut Object = msg_send![tr, formattedString];
                 let c: *const std::os::raw::c_char = msg_send![ns, UTF8String];
                 if c.is_null() { return; }
                 let text = std::ffi::CStr::from_ptr(c).to_string_lossy().into_owned();
-                let _ = app_for_block.emit("transcription-chunk", serde_json::json!({
-                    "text": text,
-                    "isFinal": is_final != 0
+                let _ = app_cb.emit("transcription-chunk", serde_json::json!({
+                    "text": text, "isFinal": is_final != 0
                 }));
             }
         });
         let result_block = result_block.copy();
 
-        // recognitionTaskWithRequest:resultHandler: returns an autoreleased task → retain it
         let task: *mut Object = msg_send![recognizer,
-            recognitionTaskWithRequest: request
-            resultHandler: &*result_block
-        ];
-        let _: () = msg_send![task, retain];
+            recognitionTaskWithRequest: request resultHandler: &*result_block];
+        let _: () = msg_send![task, retain]; // autoreleased → retain
 
-        // Start audio capture
-        let mut ns_error: *mut Object = std::ptr::null_mut();
-        let ok: i8 = msg_send![engine, startAndReturnError: &mut ns_error];
+        let mut ns_err: *mut Object = std::ptr::null_mut();
+        let ok: i8 = msg_send![engine, startAndReturnError: &mut ns_err];
         if ok == 0 {
-            let desc = if !ns_error.is_null() {
-                let d: *mut Object = msg_send![ns_error, localizedDescription];
-                let c: *const std::os::raw::c_char = msg_send![d, UTF8String];
-                if c.is_null() { "Erro desconhecido ao iniciar áudio.".to_string() }
-                else { std::ffi::CStr::from_ptr(c).to_string_lossy().into_owned() }
+            let desc = if ns_err.is_null() {
+                "AVAudioEngine falhou ao iniciar.".to_string()
             } else {
-                "Falha ao iniciar AVAudioEngine.".to_string()
+                let d: *mut Object = msg_send![ns_err, localizedDescription];
+                let c: *const std::os::raw::c_char = msg_send![d, UTF8String];
+                if c.is_null() { "Erro desconhecido.".to_string() }
+                else { std::ffi::CStr::from_ptr(c).to_string_lossy().into_owned() }
             };
             let _: () = msg_send![task, release];
             let _: () = msg_send![pool, drain];
@@ -166,55 +185,45 @@ mod speech {
         }
 
         let _: () = msg_send![pool, drain];
-
         Ok(Session {
-            engine:     engine     as usize,
-            task:       task       as usize,
-            input_node: input_node as usize,
-            recognizer: recognizer as usize,
-            request:    request    as usize,
-            app,
+            engine: engine as usize, task: task as usize,
+            input_node: input_node as usize, recognizer: recognizer as usize,
+            request: request as usize, app,
         })
     }
 
-    // ── Stop — removeTapOnBus: must also run on the main thread ──────────────
+    // ── Stop — removeTapOnBus: requires main thread ───────────────────────────
     pub fn stop() -> Result<(), String> {
-        let mut lock = ACTIVE.lock().map_err(|_| "Erro interno de mutex")?;
+        let mut lock = ACTIVE.lock().map_err(|_| "Mutex error")?;
         if let Some(s) = lock.take() {
             let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
             s.app.run_on_main_thread(move || {
-                unsafe {
-                    let pool: *mut Object  = msg_send![class!(NSAutoreleasePool), new];
-                    let engine     = s.engine     as *mut Object;
-                    let task       = s.task       as *mut Object;
-                    let input_node = s.input_node as *mut Object;
-                    let recognizer = s.recognizer as *mut Object;
-                    let request    = s.request    as *mut Object;
-
-                    let _: () = msg_send![task, finish];
-                    let _: () = msg_send![input_node, removeTapOnBus: 0usize];
-                    let _: () = msg_send![engine, stop];
-
-                    let _: () = msg_send![task,       release];
-                    let _: () = msg_send![recognizer, release];
-                    let _: () = msg_send![request,    release];
-                    let _: () = msg_send![engine,     release];
-                    let _: () = msg_send![pool, drain];
+                if let Ok(pool_cls) = cls("NSAutoreleasePool") {
+                    unsafe {
+                        let pool: *mut Object = msg_send![pool_cls, new];
+                        let _: () = msg_send![s.task as *mut Object, finish];
+                        let _: () = msg_send![s.input_node as *mut Object, removeTapOnBus: 0usize];
+                        let _: () = msg_send![s.engine as *mut Object, stop];
+                        let _: () = msg_send![s.task       as *mut Object, release];
+                        let _: () = msg_send![s.recognizer as *mut Object, release];
+                        let _: () = msg_send![s.request    as *mut Object, release];
+                        let _: () = msg_send![s.engine     as *mut Object, release];
+                        let _: () = msg_send![pool, drain];
+                    }
                 }
                 let _ = done_tx.send(());
             }).ok();
-            // Wait for cleanup (generous timeout; fire-and-forget if it hangs)
             done_rx.recv_timeout(Duration::from_secs(5)).ok();
         }
         Ok(())
     }
 }
 
-// ── Speech commands (exported to frontend) ────────────────────────────────────
+// ── Speech commands ───────────────────────────────────────────────────────────
 #[tauri::command]
-async fn request_speech_permission() -> Result<(), String> {
+async fn request_speech_permission(app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
-    return speech::request_auth();
+    return speech::request_auth(app);
     #[cfg(not(target_os = "macos"))]
     Err("Transcrição de áudio só está disponível no macOS.".to_string())
 }
