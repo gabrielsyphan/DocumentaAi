@@ -74,14 +74,6 @@ async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
 }
 
 pub fn run() {
-    // WebKitGTK on Linux can black-screen when the compositor fails during
-    // heavy DOM mutations (e.g. BlockNote editor mount). Disabling GPU
-    // compositing fixes the issue on most drivers/distros.
-    #[cfg(target_os = "linux")]
-    {
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-    }
-
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::default().build())
