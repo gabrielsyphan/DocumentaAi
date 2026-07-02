@@ -2851,6 +2851,15 @@ html, body, #root {
 
 .fc-sidebar-btn { position: relative; }
 
+.fc-empty-hint {
+  font-size: 11px;
+  color: var(--sidebar-text);
+  padding: 4px 16px 12px;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
 /* ── Graph View ───────────────────────────────────────────────────────────────── */
 
 .graph-overlay {
@@ -2929,6 +2938,19 @@ html, body, #root {
   opacity: 0.7;
 }
 
+.graph-no-links {
+  font-size: 11px;
+  color: var(--sidebar-text);
+  opacity: 0.75;
+  margin-left: 4px;
+}
+.graph-no-links code {
+  background: var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+}
+
 .graph-tooltip {
   display: none;
   position: fixed;
@@ -2947,6 +2969,15 @@ html, body, #root {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 .pres-dot.active { background: rgba(255,255,255,0.85); }
+
+.pres-hint {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  pointer-events: none;
+}
 
 /* ── Excalidraw theme overrides ──────────────────────────────────────────────
    Os seletores usam [data-theme] + .canvas-area para ter especificidade maior

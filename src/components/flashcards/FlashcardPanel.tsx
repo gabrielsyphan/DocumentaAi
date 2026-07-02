@@ -107,6 +107,12 @@ export function CreateFlashcardModal({
           </button>
         </div>
 
+        {cards.length === 0 && (
+          <p className="fc-empty-hint">
+            Selecione um trecho no editor antes de abrir este painel para pré-preencher a frente do card.
+          </p>
+        )}
+
         {cards.length > 0 && (
           <div className="fc-card-list">
             <div className="fc-list-label">Cards existentes ({cards.length})</div>

@@ -1193,6 +1193,12 @@ function PresentationMode({ slides, onClose }: { slides: Slide[]; onClose: () =>
           />
         ))}
       </div>
+
+      {slides.length === 1 && (
+        <div className="pres-hint">
+          Dica: cada título <strong>H1</strong> no editor vira um novo slide
+        </div>
+      )}
     </div>
   );
 }

@@ -36,8 +36,11 @@ function walkBlocks(blocks: unknown[], acc: string[]) {
     if (Array.isArray(block.content)) {
       for (const inline of block.content) {
         const il = inline as Record<string, unknown>;
-        if (il.type === "wikilink" && typeof il.pageTitle === "string") {
-          acc.push(il.pageTitle.toLowerCase());
+        // BlockNote serializa wikilinks como { type: "wikilink", props: { pageTitle } }
+        if (il.type === "wikilink") {
+          const props = il.props as Record<string, unknown> | undefined;
+          const title = props?.pageTitle ?? il.pageTitle; // compatibilidade retroativa
+          if (typeof title === "string" && title) acc.push(title.toLowerCase());
         }
       }
     }
@@ -224,7 +227,12 @@ export default function GraphView({
               {type}
             </span>
           ))}
-          <span className="graph-hint">Arraste nós · Scroll para zoom · Clique para abrir</span>
+          {links.length === 0 && (
+            <span className="graph-no-links">
+              Sem conexões ainda — escreva <code>[[título da página]]</code> em qualquer página para criar um link
+            </span>
+          )}
+          <span className="graph-hint">Arraste · Scroll zoom · Clique abre página</span>
         </div>
       </div>
     </div>
