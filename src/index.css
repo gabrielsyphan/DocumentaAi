@@ -173,6 +173,15 @@ html, body, #root {
   color: var(--sidebar-text-active);
 }
 
+.sidebar-version {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--sidebar-text);
+  opacity: 0.4;
+  font-family: ui-monospace, monospace;
+}
+
 .sidebar-logo-img {
   width: 26px;
   height: 26px;
@@ -709,11 +718,11 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-.canvas-topbar .page-title-input {
-  padding: 0 0 0 56px;
+.canvas-topbar .page-title-input,
+.board-editor .page-title-input {
   margin: 0;
   max-width: none;
-  flex: 1;
+  padding: 0 28px;
 }
 
 /* Alinha o botão de foco com o título (que desce padding-top: 52px) */
@@ -1483,14 +1492,14 @@ html, body, #root {
 .theme-picker-menu {
   position: absolute;
   bottom: calc(100% + 6px);
-  right: 0;
+  left: 0;
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 4px;
   z-index: 500;
-  min-width: 150px;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+  min-width: 160px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.25);
 }
 
 .theme-picker-item {
@@ -3402,3 +3411,401 @@ html, body, #root {
   flex-shrink: 0;
 }
 .capture-stamp-remove:hover { opacity: 1; }
+
+/* ── Board / Kanban ─────────────────────────────────────────────────────────── */
+
+.board-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.board-editor .editor-topbar {
+  padding-top: 52px;
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.board-editor .topbar-actions {
+  top: calc(52px + 6px);
+  right: 24px;
+}
+
+.board-canvas {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  padding: 24px 28px 32px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  align-items: flex-start;
+}
+
+/* Column */
+.board-column {
+  width: 272px;
+  min-width: 272px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  transition: opacity 0.15s;
+}
+
+.board-column--overlay {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  opacity: 0.95;
+  rotate: 1.5deg;
+}
+
+.board-column-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.board-column-drag-handle {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  cursor: grab;
+  padding: 2px;
+  border-radius: 4px;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+.board-column-drag-handle:hover { opacity: 0.9; }
+.board-column-drag-handle:active { cursor: grabbing; }
+
+.board-column-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  min-width: 0;
+}
+
+.board-column-title-input {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid rgba(148,128,245,0.4);
+  border-radius: 5px;
+  padding: 2px 6px;
+  outline: none;
+  min-width: 0;
+}
+
+.board-column-count {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface2);
+  padding: 1px 7px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.board-column-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.board-col-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 5px;
+  transition: color 0.12s, background 0.12s;
+}
+.board-col-btn:hover { color: var(--text); background: var(--surface2); }
+.board-col-btn--danger:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+
+/* Cards list */
+.board-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 32px;
+}
+
+/* Card */
+.board-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 4px 4px 2px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: default;
+}
+.board-card:hover {
+  border-color: rgba(148,128,245,0.35);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.board-card--overlay {
+  box-shadow: 0 10px 32px rgba(0,0,0,0.5);
+  rotate: 1deg;
+  opacity: 0.95;
+}
+
+.board-card-grip {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  cursor: grab;
+  padding: 6px 2px;
+  opacity: 0.3;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.board-card:hover .board-card-grip { opacity: 0.8; }
+.board-card-grip:active { cursor: grabbing; }
+
+.board-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px 6px 2px;
+  min-width: 0;
+}
+.board-card-body:hover .board-card-title { color: var(--accent); }
+
+.board-card-title {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+  transition: color 0.12s;
+}
+
+.board-card-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.board-card-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 5px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+.board-card:hover .board-card-delete { opacity: 1; }
+.board-card-delete:hover { color: #f87171; }
+
+/* Add card button */
+.board-add-card-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  border-radius: 0 0 11px 11px;
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+.board-add-card-btn:hover { color: var(--text); background: var(--surface2); }
+
+/* Add column button */
+.board-add-column-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 200px;
+  height: fit-content;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 12px 18px;
+  color: var(--muted);
+  font-size: 13px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.board-add-column-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+/* Card modal */
+.board-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.board-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+}
+
+.board-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.board-modal-column-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.board-modal-close {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 5px;
+}
+.board-modal-close:hover { color: var(--text); }
+
+.board-modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  padding: 4px 0 8px;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.board-modal-title:focus { border-color: var(--accent); }
+
+.board-modal-desc {
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  padding: 10px 12px;
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.6;
+  transition: border-color 0.15s;
+}
+.board-modal-desc:focus { border-color: rgba(148,128,245,0.5); }
+.board-modal-desc::placeholder { color: var(--muted); }
+
+.board-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.board-modal-delete {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 7px 12px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.board-modal-delete:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+
+.board-modal-cancel {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 7px 14px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.board-modal-cancel:hover { color: var(--text); border-color: #444; }
+
+.board-modal-save {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 16px;
+  transition: background 0.12s;
+}
+.board-modal-save:hover { background: var(--accent-hover, #a993ff); }

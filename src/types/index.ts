@@ -1,4 +1,4 @@
-export type PageType = "document" | "daily" | "canvas" | "folder";
+export type PageType = "document" | "daily" | "canvas" | "folder" | "board";
 
 export interface Page {
   id: string;

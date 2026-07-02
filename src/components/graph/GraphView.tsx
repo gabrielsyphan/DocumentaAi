@@ -60,6 +60,7 @@ const NODE_COLORS: Record<Page["type"], string> = {
   daily:    "#818cf8",
   canvas:   "#f59e0b",
   folder:   "#64748b",
+  board:    "#22c55e",
 };
 
 

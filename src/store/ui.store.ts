@@ -25,12 +25,16 @@ interface UIState {
   activeTag: string | null;
   focusMode: boolean;
   pageSort: PageSort;
+  expandedPages: Set<string>;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
   setActiveTag: (tag: string | null) => void;
   toggleFocusMode: () => void;
   setPageSort: (sort: PageSort) => void;
+  collapsePage: (id: string, descendantIds: string[]) => void;
+  expandPage: (id: string) => void;
+
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -39,6 +43,7 @@ export const useUIStore = create<UIState>((set) => ({
   activeTag: null,
   focusMode: false,
   pageSort: "default",
+  expandedPages: new Set<string>(),
 
   setTheme: (theme) => {
     localStorage.setItem("documentaai-theme", theme);
@@ -58,4 +63,19 @@ export const useUIStore = create<UIState>((set) => ({
   setActiveTag: (tag) => set({ activeTag: tag }),
   toggleFocusMode: () => set((s) => ({ focusMode: !s.focusMode })),
   setPageSort: (pageSort) => set({ pageSort }),
+
+  collapsePage: (id, descendantIds) =>
+    set((s) => {
+      const next = new Set(s.expandedPages);
+      next.delete(id);
+      descendantIds.forEach((d) => next.delete(d));
+      return { expandedPages: next };
+    }),
+
+  expandPage: (id) =>
+    set((s) => {
+      const next = new Set(s.expandedPages);
+      next.add(id);
+      return { expandedPages: next };
+    }),
 }));

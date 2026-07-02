@@ -1,6 +1,6 @@
 import {
   Plus, Search, Star, FileText, RefreshCw, CalendarDays,
-  LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
+  LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft, LayoutGrid,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
   FileUp, Palette, BookOpen, Network, Check, HardDriveDownload, HardDriveUpload,
 } from "lucide-react";
@@ -178,7 +178,7 @@ function TrashSection() {
               {trash.map((page) => (
                 <div key={page.id} className="trash-item">
                   <span className="trash-item-icon">
-                    {page.emoji ?? (page.type === "canvas" ? <PenTool size={12} /> : page.type === "daily" ? <CalendarDays size={12} /> : <FileText size={12} />)}
+                    {page.emoji ?? (page.type === "canvas" ? <PenTool size={12} /> : page.type === "board" ? <LayoutGrid size={12} /> : page.type === "daily" ? <CalendarDays size={12} /> : <FileText size={12} />)}
                   </span>
                   <span className="trash-item-title">{page.title || "Sem título"}</span>
                   <span className="trash-item-date">{relativeDate(page.deleted_at!)}</span>
@@ -342,6 +342,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     <aside className="sidebar">
       <div className="sidebar-header">
         <span>DocumentaAI</span>
+        {appVersion && <span className="sidebar-version">v{appVersion}</span>}
       </div>
 
       <div className="sidebar-actions">
@@ -384,6 +385,9 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
               <button className="new-page-menu-item" onMouseDown={() => { setShowNewMenu(false); createPage(undefined, { title: "Nova pasta", type: "folder" }); }}>
                 <Folder size={13} /> Pasta
               </button>
+              <button className="new-page-menu-item" onMouseDown={() => { setShowNewMenu(false); createPage(undefined, { title: "Novo board", type: "board" }); }}>
+                <LayoutGrid size={13} /> Board
+              </button>
             </div>
           )}
         </div>
@@ -415,6 +419,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                 <span className="favorite-item-icon">
                   {page.emoji ?? (
                     page.type === "canvas" ? <PenTool size={13} /> :
+                    page.type === "board" ? <LayoutGrid size={13} /> :
                     page.type === "folder" ? <FolderOpen size={13} /> :
                     page.type === "daily" ? <CalendarDays size={13} /> :
                     <FileText size={13} />
@@ -548,7 +553,6 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
       <TrashSection />
 
       <div className="sidebar-footer">
-        {appVersion && <span className="sidebar-shortcut-hint">v{appVersion}</span>}
         <button
           className="theme-toggle"
           onClick={() => load()}

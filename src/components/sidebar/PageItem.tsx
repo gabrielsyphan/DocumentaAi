@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, ChevronDown, Plus, Trash2, FileText, PenTool, Folder, FolderOpen, X, Check, Star, CalendarDays } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Trash2, FileText, PenTool, Folder, FolderOpen, X, Check, Star, CalendarDays, LayoutGrid } from "lucide-react";
 import type { PageWithChildren } from "../../types";
 import { usePagesStore } from "../../store/pages.store";
+import { useUIStore } from "../../store/ui.store";
 import { useDragCtx } from "./DragContext";
+
+function getDescendantIds(page: PageWithChildren): string[] {
+  return page.children.flatMap((c) => [c.id, ...getDescendantIds(c)]);
+}
 
 interface Props {
   page: PageWithChildren;
@@ -12,10 +17,12 @@ interface Props {
 const DRAG_THRESHOLD = 5;
 
 export default function PageItem({ page, depth }: Props) {
-  const [expanded, setExpanded] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const { selectedPageId, selectPage, createPage, trashPage, toggleFavorite } = usePagesStore();
+  const { expandedPages, collapsePage, expandPage } = useUIStore();
   const { draggedId, overId, overPosition, startDrag } = useDragCtx();
+
+  const expanded = expandedPages.has(page.id);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const dragStarted = useRef(false);
 
@@ -26,7 +33,7 @@ export default function PageItem({ page, depth }: Props) {
 
   // Auto-expand when something is dropped inside this page
   useEffect(() => {
-    if (isOver && overPosition === "inside") setExpanded(true);
+    if (isOver && overPosition === "inside") expandPage(page.id);
   }, [isOver, overPosition]);
 
   function handlePointerDown(e: React.PointerEvent) {
@@ -75,7 +82,7 @@ export default function PageItem({ page, depth }: Props) {
 
   function handleAddChild(e: React.MouseEvent) {
     e.stopPropagation();
-    setExpanded(true);
+    expandPage(page.id);
     createPage(page.id);
   }
 
@@ -119,7 +126,11 @@ export default function PageItem({ page, depth }: Props) {
           <>
             <button
               className="page-item-expand"
-              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (expanded) collapsePage(page.id, getDescendantIds(page));
+                else expandPage(page.id);
+              }}
               style={{ opacity: hasChildren ? 1 : 0, pointerEvents: hasChildren ? "auto" : "none" }}
             >
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -128,6 +139,7 @@ export default function PageItem({ page, depth }: Props) {
             <span className="page-item-emoji">
               {page.emoji ?? (
                 page.type === "canvas" ? <PenTool size={13} /> :
+                page.type === "board" ? <LayoutGrid size={13} /> :
                 page.type === "folder" ? (expanded ? <FolderOpen size={13} /> : <Folder size={13} />) :
                 page.type === "daily" ? <CalendarDays size={13} /> :
                 <FileText size={13} />

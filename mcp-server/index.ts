@@ -49,8 +49,15 @@ function getDbPath(): string {
   );
 }
 
-const db = new Database(getDbPath());
-db.pragma("journal_mode = WAL");
+let _db: Database.Database | undefined;
+
+function getDb(): Database.Database {
+  if (!_db) {
+    _db = new Database(getDbPath());
+    _db.pragma("journal_mode = WAL");
+  }
+  return _db;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -297,6 +304,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }))
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args = {} } = req.params;
+
+  let db: Database.Database;
+  try {
+    db = getDb();
+  } catch (e) {
+    return {
+      content: [{
+        type: "text",
+        text: `[DocumentaAI MCP] Não foi possível conectar ao banco de dados:\n${e instanceof Error ? e.message : String(e)}`,
+      }],
+      isError: true,
+    };
+  }
 
   switch (name) {
 

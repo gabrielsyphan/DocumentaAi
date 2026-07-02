@@ -75,6 +75,7 @@ import Sidebar from "../sidebar/Sidebar";
 import Editor from "../editor/Editor";
 import CanvasEditor from "../editor/CanvasEditor";
 import FolderView from "../editor/FolderView";
+import BoardEditor from "../editor/BoardEditor";
 import SearchModal from "../search/SearchModal";
 import TemplateGallery from "../templates/TemplateGallery";
 import UpdateBanner from "./UpdateBanner";
@@ -179,6 +180,10 @@ export default function AppShell() {
         ) : selectedPageId && selectedPage?.type === "folder" ? (
           <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId} onClearContent={() => updatePage(selectedPageId, { content: null })}>
             <FolderView pageId={selectedPageId} />
+          </EditorErrorBoundary>
+        ) : selectedPageId && selectedPage?.type === "board" ? (
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId} onClearContent={() => updatePage(selectedPageId, { content: null })}>
+            <BoardEditor pageId={selectedPageId} />
           </EditorErrorBoundary>
         ) : selectedPageId ? (
           <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId} onClearContent={() => updatePage(selectedPageId, { content: null })}>

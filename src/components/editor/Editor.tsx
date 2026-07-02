@@ -1306,6 +1306,11 @@ function DailyAgenda({ date }: { date: string }) {
 function PresentationMode({ slides, onClose }: { slides: Slide[]; onClose: () => void }) {
   const [idx, setIdx] = useState(0);
   const slide = slides[Math.min(idx, slides.length - 1)];
+  const slideRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (slideRef.current) slideRef.current.scrollTop = 0;
+  }, [idx]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -1325,7 +1330,7 @@ function PresentationMode({ slides, onClose }: { slides: Slide[]; onClose: () =>
         <XIcon size={18} />
       </button>
 
-      <div className="pres-slide">
+      <div className="pres-slide" ref={slideRef}>
         <h1 className="pres-slide-title">{slide.title}</h1>
         <div className="pres-slide-body">
           {renderSlideContent(slide.content)}
