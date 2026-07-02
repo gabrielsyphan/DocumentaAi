@@ -17,7 +17,8 @@ async function getDb(): Promise<Database> {
         is_favorite INTEGER NOT NULL DEFAULT 0,
         type        TEXT NOT NULL DEFAULT 'document',
         tags        TEXT NOT NULL DEFAULT '[]',
-        deleted_at  TEXT,
+        deleted_at    TEXT,
+        reminder_date TEXT,
         created_at  TEXT NOT NULL,
         updated_at  TEXT NOT NULL
       )
@@ -27,6 +28,7 @@ async function getDb(): Promise<Database> {
       "ALTER TABLE pages ADD COLUMN type TEXT NOT NULL DEFAULT 'document'",
       "ALTER TABLE pages ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'",
       "ALTER TABLE pages ADD COLUMN deleted_at TEXT",
+      "ALTER TABLE pages ADD COLUMN reminder_date TEXT",
     ]) {
       try { await db.execute(migration); } catch { /* coluna já existe */ }
     }
@@ -47,7 +49,7 @@ async function getDb(): Promise<Database> {
   return db;
 }
 
-type RawPage = Omit<Page, "tags"> & { tags: string | null };
+type RawPage = Omit<Page, "tags"> & { tags: string | null; reminder_date?: string | null };
 
 export async function fetchAllPages(): Promise<Page[]> {
   const database = await getDb();
@@ -58,6 +60,7 @@ export async function fetchAllPages(): Promise<Page[]> {
     ...row,
     tags: row.tags ? JSON.parse(row.tags) : [],
     deleted_at: null,
+    reminder_date: row.reminder_date ?? null,
   }));
 }
 
@@ -69,25 +72,27 @@ export async function fetchTrash(): Promise<Page[]> {
   return rows.map((row) => ({
     ...row,
     tags: row.tags ? JSON.parse(row.tags) : [],
+    reminder_date: row.reminder_date ?? null,
   }));
 }
 
 export async function upsertPage(page: Page): Promise<void> {
   const database = await getDb();
   await database.execute(
-    `INSERT INTO pages (id, parent_id, title, emoji, content, order_index, is_favorite, type, tags, deleted_at, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `INSERT INTO pages (id, parent_id, title, emoji, content, order_index, is_favorite, type, tags, deleted_at, reminder_date, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT(id) DO UPDATE SET
-       parent_id   = excluded.parent_id,
-       title       = excluded.title,
-       emoji       = excluded.emoji,
-       content     = excluded.content,
-       order_index = excluded.order_index,
-       is_favorite = excluded.is_favorite,
-       type        = excluded.type,
-       tags        = excluded.tags,
-       deleted_at  = excluded.deleted_at,
-       updated_at  = excluded.updated_at`,
+       parent_id     = excluded.parent_id,
+       title         = excluded.title,
+       emoji         = excluded.emoji,
+       content       = excluded.content,
+       order_index   = excluded.order_index,
+       is_favorite   = excluded.is_favorite,
+       type          = excluded.type,
+       tags          = excluded.tags,
+       deleted_at    = excluded.deleted_at,
+       reminder_date = excluded.reminder_date,
+       updated_at    = excluded.updated_at`,
     [
       page.id,
       page.parent_id,
@@ -99,6 +104,7 @@ export async function upsertPage(page: Page): Promise<void> {
       page.type,
       JSON.stringify(page.tags ?? []),
       page.deleted_at ?? null,
+      page.reminder_date ?? null,
       page.created_at,
       page.updated_at,
     ]

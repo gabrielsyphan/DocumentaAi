@@ -77,6 +77,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
       type: overrides?.type ?? "document",
       tags: [],
       deleted_at: null,
+      reminder_date: null,
       created_at: now,
       updated_at: now,
     };
@@ -106,6 +107,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
       type: "daily",
       tags: [],
       deleted_at: null,
+      reminder_date: null,
       created_at: now,
       updated_at: now,
     };

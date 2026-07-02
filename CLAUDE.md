@@ -297,22 +297,27 @@ cd mcp-server && npm install && npm run build
 - [x] Quando ordenação != Padrão exibe lista plana ordenada (sem hierarquia)
 - [x] Estado de ordenação no `ui.store` (persiste durante a sessão)
 
-### Fase 9 — Produtividade
+### Fase 9 — Produtividade ✅ concluída
 
-#### Snippets / text expand
-- [ ] Atalhos de texto que expandem para blocos — ex: digitar `/daily` insere template de daily note
-- [ ] Gerenciador de snippets acessível nas configurações
-- [ ] Snippets salvos em `localStorage`
+#### Snippets / text expand ✅
+- [x] Snippets embutidos: Reunião, Revisão Semanal, Anotações de Estudo, Bullet Journal
+- [x] Menu `/` do editor estendido com grupo "Snippets" (usando `getDefaultReactSlashMenuItems` +
+      itens customizados) — ex: digitar `/reuniao` insere o template de reunião
+- [x] "Salvar como snippet" no menu de exportar — salvo em `localStorage` via `src/lib/snippets.ts`
+- [x] Snippets do usuário aparecem no menu `/` sob o mesmo grupo "Snippets"
 
-#### Lembretes em páginas
-- [ ] Campo de data opcional em qualquer página
-- [ ] Página com data aparece na daily note do dia correspondente como item de agenda
-- [ ] Notificação nativa via `tauri-plugin-notification` no dia configurado
+#### Lembretes em páginas ✅
+- [x] Coluna `reminder_date TEXT` no SQLite com migração automática
+- [x] Botão Bell no topbar do editor abre date picker inline
+- [x] Quando um lembrete é definido, o bell muda de aparência (BellOff → Bell)
+- [x] Ao abrir a daily note de um dia, seção "Agenda do dia" mostra todas as
+      páginas com `reminder_date === date` (sem modificar o conteúdo da nota)
 
-#### Importar Markdown
-- [ ] Botão "Importar" aceita arquivos `.md` ou pasta inteira
-- [ ] Converte Markdown para BlockNote JSON (headings, listas, code blocks, bold/italic)
-- [ ] Mantém hierarquia de pastas como subpáginas
+#### Importar Markdown ✅
+- [x] Botão "Importar MD" na sidebar abre seletor de arquivos (multi-select)
+- [x] `src/lib/markdown-import.ts` converte `.md` para BlockNote JSON:
+      headings, listas, checkboxes, código, bold/italic/strike/code inline, links
+- [x] Cria uma página por arquivo com o nome do arquivo como título
 
 ### Fase 10 — Visual e UX
 

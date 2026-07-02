@@ -11,6 +11,7 @@ export interface Page {
   type: PageType;
   tags: string[];       // array de tags, ex: ["trabalho", "pessoal"]
   deleted_at: string | null;
+  reminder_date: string | null;
   created_at: string;
   updated_at: string;
 }

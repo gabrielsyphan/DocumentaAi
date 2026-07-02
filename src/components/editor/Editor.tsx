@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor, SuggestionMenuController } from "@blocknote/react";
+import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor, SuggestionMenuController, getDefaultReactSlashMenuItems } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { WikiLink } from "./WikiLink";
 import { createHighlighter } from "shiki";
@@ -16,7 +16,8 @@ import { tagColor, normalizeTag } from "../../lib/tags";
 import { useTTS, countWords, type TTSState } from "../../lib/tts";
 import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight } from "lucide-react";
+import { getAllSnippets, saveCustomSnippet } from "../../lib/snippets";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock } from "lucide-react";
 
 // ── Presentation helpers ──────────────────────────────────────────────────────
 
@@ -235,6 +236,7 @@ export default function Editor({ pageId }: Props) {
   const [wordCount, setWordCount] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState<PageVersion[]>([]);
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
 
   const initialContent = (() => {
     if (!page?.content) return undefined;
@@ -521,6 +523,38 @@ export default function Editor({ pageId }: Props) {
             >
               <Presentation size={15} />
             </button>
+            <div style={{ position: "relative" }}>
+              <button
+                className={`topbar-action-btn${page?.reminder_date ? " active" : ""}`}
+                onClick={() => setShowReminderPicker((v) => !v)}
+                title={page?.reminder_date ? `Lembrete: ${page.reminder_date}` : "Definir lembrete"}
+              >
+                {page?.reminder_date ? <Bell size={15} /> : <BellOff size={15} />}
+              </button>
+              {showReminderPicker && (
+                <div className="reminder-picker" onMouseDown={(e) => e.stopPropagation()}>
+                  <label className="reminder-picker-label">
+                    <CalendarClock size={12} /> Lembrete
+                  </label>
+                  <input
+                    type="date"
+                    className="reminder-picker-input"
+                    value={page?.reminder_date ?? ""}
+                    onChange={(e) => {
+                      updatePage(pageId, { reminder_date: e.target.value || null });
+                    }}
+                  />
+                  {page?.reminder_date && (
+                    <button
+                      className="reminder-clear-btn"
+                      onClick={() => { updatePage(pageId, { reminder_date: null }); setShowReminderPicker(false); }}
+                    >
+                      <XIcon size={11} /> Remover
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               className="topbar-action-btn"
               onClick={handleOpenHistory}
@@ -554,6 +588,24 @@ export default function Editor({ pageId }: Props) {
                 <button className="export-menu-item" onMouseDown={handleSaveTemplate}>
                   <BookTemplate size={13} /> Salvar como template
                 </button>
+                <button
+                  className="export-menu-item"
+                  onMouseDown={() => {
+                    setShowExport(false);
+                    const name = prompt("Nome do snippet:");
+                    if (!name) return;
+                    const trigger = prompt("Atalho (ex: reuniao):", name.toLowerCase().replace(/\s+/g, "")) ?? "";
+                    saveCustomSnippet({
+                      id: crypto.randomUUID(),
+                      name,
+                      trigger,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      blocks: stripBlockIds(editor.document as any),
+                    });
+                  }}
+                >
+                  <Scissors size={13} /> Salvar como snippet
+                </button>
               </div>
             )}
           </div>
@@ -574,8 +626,41 @@ export default function Editor({ pageId }: Props) {
           </div>
         )}
 
-        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false}>
+        {page?.type === "daily" && (
+          <DailyAgenda date={page.title} />
+        )}
+
+        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false} slashMenu={false}>
           <FormattingToolbarController formattingToolbar={StableFormattingToolbar} />
+          {/* Slash menu personalizado com snippets */}
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) => {
+              const q = query.toLowerCase();
+              const defaults = getDefaultReactSlashMenuItems(editor);
+              const snippets = getAllSnippets();
+              const snippetItems = snippets.map((s) => ({
+                title: s.name,
+                aliases: [s.trigger],
+                group: "Snippets",
+                icon: <Scissors size={18} />,
+                onItemClick: () => {
+                  const curBlock = editor.getTextCursorPosition().block;
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  editor.insertBlocks(stripBlockIds(s.blocks as any) as any, curBlock, "after");
+                },
+              }));
+              const allItems = [...defaults, ...snippetItems];
+              return q
+                ? allItems.filter((item) =>
+                    item.title.toLowerCase().includes(q) ||
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    ((item as any).aliases ?? []).some((a: string) => a.toLowerCase().includes(q))
+                  )
+                : allItems;
+            }}
+          />
+          {/* Menu de wikilinks com [[ */}
           <SuggestionMenuController
             triggerCharacter="["
             getItems={async (query) => {
@@ -880,6 +965,31 @@ function TagEditor({ pageId, wordCount }: { pageId: string; wordCount: number })
           {wordCount} {wordCount === 1 ? "palavra" : "palavras"} · {readingTime} min
         </span>
       )}
+    </div>
+  );
+}
+
+// ── Daily Agenda ──────────────────────────────────────────────────────────────
+
+function DailyAgenda({ date }: { date: string }) {
+  const { pages, selectPage } = usePagesStore();
+  const reminders = pages.filter((p) => p.type !== "daily" && p.reminder_date === date);
+  if (reminders.length === 0) return null;
+
+  return (
+    <div className="daily-agenda">
+      <div className="daily-agenda-header">
+        <CalendarClock size={12} />
+        Agenda do dia
+      </div>
+      <div className="daily-agenda-list">
+        {reminders.map((p) => (
+          <button key={p.id} className="daily-agenda-item" onClick={() => selectPage(p.id)}>
+            <span className="daily-agenda-emoji">{p.emoji ?? <FileText size={12} />}</span>
+            <span className="daily-agenda-title">{p.title || "Sem título"}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

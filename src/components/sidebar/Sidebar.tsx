@@ -2,6 +2,7 @@ import {
   Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
+  FileUp,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePagesStore } from "../../store/pages.store";
@@ -10,6 +11,7 @@ import { tagColor } from "../../lib/tags";
 import type { Page } from "../../types";
 import PageItem from "./PageItem";
 import { DragProvider } from "./DragContext";
+import { markdownToBlocks } from "../../lib/markdown-import";
 
 interface Props {
   onSearch: () => void;
@@ -181,6 +183,19 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImportMarkdown(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    for (const file of files) {
+      const text = await file.text();
+      const blocks = markdownToBlocks(text);
+      const title = file.name.replace(/\.(md|markdown)$/i, "");
+      await createPage(undefined, { title, content: JSON.stringify(blocks) });
+    }
+    e.target.value = "";
+  }
 
   useEffect(() => {
     if (!showNewMenu) return;
@@ -239,6 +254,18 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
           <LayoutTemplate size={13} />
           Templates
         </button>
+        <button className="sidebar-new-btn" onClick={() => importInputRef.current?.click()}>
+          <FileUp size={13} />
+          Importar MD
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".md,.markdown"
+          multiple
+          style={{ display: "none" }}
+          onChange={handleImportMarkdown}
+        />
         <div className="new-page-wrapper" ref={newMenuRef}>
           <button className="sidebar-new-btn primary" onClick={() => setShowNewMenu((v) => !v)}>
             <Plus size={13} />
