@@ -47,9 +47,19 @@ export default function CanvasEditor({ pageId }: Props) {
       const api = apiRef.current;
       if (!api) return;
       const els = api.getSceneElements();
-      if (els.length > 0) {
-        api.scrollToContent(els, { fitToViewport: true, animate: false });
-      }
+      if (els.length === 0) return;
+
+      // 1. Centraliza o conteúdo no viewport
+      api.scrollToContent(els, { fitToViewport: true, animate: false });
+
+      // 2. Aumenta o zoom em 50% em cima do zoom calculado pelo fit,
+      //    mantendo o centro (scrollToContent já posicionou o viewport)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const state = (api as any).getAppState();
+      const fitted: number = state?.zoom?.value ?? 1;
+      const target = Math.min(fitted * 1.5, 3);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (api as any).updateScene({ appState: { zoom: { value: target } } });
     }, 150);
     return () => clearTimeout(timer);
   }, [pageId]);
