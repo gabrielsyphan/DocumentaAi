@@ -2,7 +2,7 @@ import {
   Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
-  FileUp, Palette,
+  FileUp, Palette, BookOpen,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePagesStore } from "../../store/pages.store";
@@ -12,6 +12,7 @@ import type { Page } from "../../types";
 import PageItem from "./PageItem";
 import { DragProvider } from "./DragContext";
 import { markdownToBlocks } from "../../lib/markdown-import";
+import { useDueCount, ReviewSession } from "../flashcards/FlashcardPanel";
 
 interface Props {
   onSearch: () => void;
@@ -182,6 +183,8 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const dueCount = useDueCount();
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const themePickerRef = useRef<HTMLDivElement>(null);
@@ -487,7 +490,18 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         <button className="theme-toggle" onClick={toggleTheme} title="Alternar claro/escuro">
           {THEMES.find((t) => t.value === theme)?.dark ?? true ? <Sun size={16} /> : <Moon size={16} />}
         </button>
+        <button
+          className={`theme-toggle fc-sidebar-btn${dueCount > 0 ? " active-footer" : ""}`}
+          onClick={() => setShowReview(true)}
+          title={dueCount > 0 ? `${dueCount} flashcard${dueCount > 1 ? "s" : ""} para revisar` : "Flashcards"}
+          style={{ position: "relative" }}
+        >
+          <BookOpen size={16} />
+          {dueCount > 0 && <span className="fc-sidebar-badge">{dueCount > 99 ? "99+" : dueCount}</span>}
+        </button>
       </div>
+
+      {showReview && <ReviewSession onClose={() => setShowReview(false)} />}
     </aside>
   );
 }

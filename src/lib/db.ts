@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Page, PageVersion } from "../types";
+import type { Page, PageVersion, Flashcard } from "../types";
 
 let db: Database | null = null;
 
@@ -39,6 +39,20 @@ async function getDb(): Promise<Database> {
         title    TEXT NOT NULL DEFAULT '',
         content  TEXT,
         saved_at TEXT NOT NULL
+      )
+    `);
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS flashcards (
+        id            TEXT PRIMARY KEY,
+        page_id       TEXT NOT NULL,
+        front         TEXT NOT NULL,
+        back          TEXT NOT NULL DEFAULT '',
+        interval      INTEGER NOT NULL DEFAULT 1,
+        repetitions   INTEGER NOT NULL DEFAULT 0,
+        ease_factor   REAL NOT NULL DEFAULT 2.5,
+        next_review   TEXT NOT NULL,
+        last_reviewed TEXT,
+        created_at    TEXT NOT NULL
       )
     `);
     // Auto-limpeza: remove páginas deletadas há mais de 30 dias
@@ -161,4 +175,58 @@ export async function getVersions(pageId: string): Promise<PageVersion[]> {
 export async function deletePageVersions(pageId: string): Promise<void> {
   const database = await getDb();
   await database.execute("DELETE FROM page_versions WHERE page_id = $1", [pageId]);
+}
+
+// ── Flashcards ────────────────────────────────────────────────────────────────
+
+export async function createFlashcard(card: Flashcard): Promise<void> {
+  const database = await getDb();
+  await database.execute(
+    `INSERT INTO flashcards (id, page_id, front, back, interval, repetitions, ease_factor, next_review, last_reviewed, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [card.id, card.page_id, card.front, card.back, card.interval, card.repetitions, card.ease_factor, card.next_review, card.last_reviewed, card.created_at]
+  );
+}
+
+export async function updateFlashcard(id: string, updates: Partial<Flashcard>): Promise<void> {
+  const database = await getDb();
+  const fields = Object.keys(updates).filter((k) => k !== "id");
+  const setClause = fields.map((k, i) => `${k} = $${i + 2}`).join(", ");
+  const values = fields.map((k) => (updates as Record<string, unknown>)[k]);
+  await database.execute(
+    `UPDATE flashcards SET ${setClause} WHERE id = $1`,
+    [id, ...values]
+  );
+}
+
+export async function fetchFlashcardsByPage(pageId: string): Promise<Flashcard[]> {
+  const database = await getDb();
+  return database.select<Flashcard[]>(
+    "SELECT * FROM flashcards WHERE page_id = $1 ORDER BY created_at DESC",
+    [pageId]
+  );
+}
+
+export async function fetchDueFlashcards(): Promise<Flashcard[]> {
+  const database = await getDb();
+  const today = new Date().toISOString().slice(0, 10);
+  return database.select<Flashcard[]>(
+    "SELECT * FROM flashcards WHERE next_review <= $1 ORDER BY next_review ASC",
+    [today]
+  );
+}
+
+export async function countDueFlashcards(): Promise<number> {
+  const database = await getDb();
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = await database.select<[{ count: number }]>(
+    "SELECT COUNT(*) as count FROM flashcards WHERE next_review <= $1",
+    [today]
+  );
+  return rows[0]?.count ?? 0;
+}
+
+export async function deleteFlashcard(id: string): Promise<void> {
+  const database = await getDb();
+  await database.execute("DELETE FROM flashcards WHERE id = $1", [id]);
 }

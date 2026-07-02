@@ -27,3 +27,16 @@ export interface PageVersion {
   content: string | null;
   saved_at: string;
 }
+
+export interface Flashcard {
+  id: string;
+  page_id: string;
+  front: string;
+  back: string;
+  interval: number;       // dias até próxima revisão
+  repetitions: number;    // repetições corretas consecutivas
+  ease_factor: number;    // fator de facilidade SM-2
+  next_review: string;    // YYYY-MM-DD
+  last_reviewed: string | null;
+  created_at: string;
+}

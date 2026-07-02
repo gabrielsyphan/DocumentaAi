@@ -17,7 +17,10 @@ import { useTTS, countWords, type TTSState } from "../../lib/tts";
 import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
 import { getAllSnippets, saveCustomSnippet } from "../../lib/snippets";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock } from "lucide-react";
+import { CreateFlashcardModal } from "../flashcards/FlashcardPanel";
+import { fetchFlashcardsByPage } from "../../lib/db";
+import type { Flashcard } from "../../types";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, BookOpen } from "lucide-react";
 
 // ── Presentation helpers ──────────────────────────────────────────────────────
 
@@ -237,6 +240,13 @@ export default function Editor({ pageId }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState<PageVersion[]>([]);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
+  const [showFlashcardModal, setShowFlashcardModal] = useState(false);
+  const [flashcardCount, setFlashcardCount] = useState(0);
+
+  useEffect(() => {
+    if (!pageId) return;
+    fetchFlashcardsByPage(pageId).then((cards) => setFlashcardCount(cards.length));
+  }, [pageId]);
 
   const initialContent = (() => {
     if (!page?.content) return undefined;
@@ -557,6 +567,17 @@ export default function Editor({ pageId }: Props) {
             </div>
             <button
               className="topbar-action-btn"
+              onClick={() => setShowFlashcardModal(true)}
+              title="Flashcards desta página"
+              style={{ position: "relative" }}
+            >
+              <BookOpen size={15} />
+              {flashcardCount > 0 && (
+                <span className="fc-topbar-badge">{flashcardCount}</span>
+              )}
+            </button>
+            <button
+              className="topbar-action-btn"
               onClick={handleOpenHistory}
               title="Histórico de versões"
             >
@@ -701,6 +722,18 @@ export default function Editor({ pageId }: Props) {
         <PresentationMode
           slides={buildSlides(editor.document as BNBlock[], page?.title ?? "Sem título")}
           onClose={() => setShowPresentation(false)}
+        />
+      )}
+
+      {showFlashcardModal && pageId && (
+        <CreateFlashcardModal
+          pageId={pageId}
+          initialFront={window.getSelection()?.toString() ?? ""}
+          onClose={() => setShowFlashcardModal(false)}
+          onCreated={async () => {
+            const cards = await fetchFlashcardsByPage(pageId);
+            setFlashcardCount(cards.length);
+          }}
         />
       )}
     </>
