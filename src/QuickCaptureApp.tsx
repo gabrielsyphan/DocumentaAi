@@ -184,7 +184,9 @@ export default function QuickCaptureApp() {
         onMouseDown={(e) => { if (e.button === 0) WIN.startDragging(); }}
       >
         <span style={styles.headerLabel}>Captura Rápida</span>
-        <span style={styles.headerHint}>⌘↵ salvar · Esc cancelar</span>
+        <span style={styles.headerHint}>
+          ⌘↵ salvar · Esc fechar · {IS_MAC ? "⌘⇧Space" : "Ctrl+Shift+Space"} reabrir
+        </span>
       </div>
 
       {/* ── Textarea ── */}
