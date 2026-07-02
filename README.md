@@ -1,26 +1,85 @@
-# DocumentaAI
+<p align="center">
+  <img src="logo.svg" width="110" height="110" alt="DocumentaAI" />
+</p>
 
-Ferramenta de documentação pessoal estilo Notion, feita para uso desktop com armazenamento local. Leve, offline-first e sem assinatura.
+<h1 align="center">DocumentaAI</h1>
+
+<p align="center">
+  Ferramenta de documentação pessoal <strong>offline-first</strong> estilo Notion — editor de blocos, daily notes, canvas, flashcards e integração MCP.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.0.0-9480f5?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="platform" />
+  <img src="https://img.shields.io/badge/built%20with-Tauri%20v2-FFC131?style=flat-square&logo=tauri&logoColor=white" alt="tauri" />
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="license" />
+</p>
+
+---
 
 ## Funcionalidades
 
-- Editor de blocos estilo Notion (textos, títulos, listas, tabelas, código, etc.)
-- Hierarquia de páginas com subpáginas ilimitadas
-- Auto-save automático (500ms após última edição)
-- Armazenamento local em SQLite — seus dados ficam na sua máquina
-- Tema claro e escuro
-- Criar, renomear e deletar páginas
+**Editor**
+- Editor de blocos estilo Notion (parágrafos, títulos, listas, tabelas, código com highlight, imagens inline, checkboxes)
+- Hierarquia ilimitada de páginas e subpáginas
+- Wikilinks `[[página]]` com chip visual e backlinks automáticos
+- Auto-save com debounce — seus dados nunca se perdem
+- Histórico de versões com diff visual e restauração por clique
+- Exportar para Markdown ou PDF
+- Importar arquivos `.md`
+
+**Organização**
+- Drag-and-drop para reordenar páginas na sidebar
+- Favoritos, tags com filtro e ordenação por nome/data
+- Busca global (`⌘K`) em todas as páginas
+- Lixeira com soft delete e auto-limpeza após 30 dias
+
+**Daily Notes**
+- Mini-calendário mensal integrado na sidebar
+- Botão "Hoje" cria/abre a nota do dia automaticamente
+- Seção "Agenda do dia" mostra lembretes do dia na nota
+
+**Canvas**
+- Whiteboard com Excalidraw (lazy-loaded)
+- Biblioteca de componentes: básicos, fluxograma, system design, logos de apps, wireframe
+- Zoom automático ao abrir, tema sincronizado, i18n pt-BR
+
+**Produtividade**
+- Quick Capture global (`⌘⇧Space`) — captura para a daily note sem abrir o app
+- Flashcards com algoritmo SM-2 e badge de revisões pendentes
+- Lembretes por página com date picker inline
+- Snippets / text expand no menu `/`
+- Galeria de templates (Reunião, Review Semanal, Projeto, Bullet Journal…)
+- Modo apresentação (H1 = slide) com navegação por teclado
+- Leitura em voz alta com Web Speech API (PT-BR, controle de velocidade)
+- Modo foco (`⌘⇧F`) — sidebar oculta, tipografia espaçada
+- Graph view com D3 — mapa de conexões entre páginas
+- Temas de cor: Escuro, Claro, Nord, Dracula, Rosé Pine, Solarized
+- Backup e restauração do banco de dados com um clique
+
+**MCP (IA)**
+- Servidor MCP integrado em `mcp-server/` compatível com Claude Code, Kiro, Cursor e qualquer cliente MCP
+- Ferramentas: `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`, `delete_page`
+- Auto-refresh da sidebar ao ganhar foco após operações via MCP
+
+---
 
 ## Tech stack
 
 | Camada | Tecnologia |
 |---|---|
-| Desktop | [Tauri v2](https://tauri.app) (Rust) |
+| Desktop runtime | [Tauri v2](https://tauri.app) (Rust) |
 | Frontend | React 19 + TypeScript + Vite |
 | Editor | [BlockNote](https://www.blocknotejs.org) |
+| Canvas | [Excalidraw](https://excalidraw.com) |
 | Estilo | Tailwind CSS v4 |
 | Estado | Zustand |
-| Banco de dados | SQLite via tauri-plugin-sql |
+| Banco de dados | SQLite via `tauri-plugin-sql` |
+| Ícones | Lucide React |
+| Syntax highlight | Shiki |
+| Graph view | D3 v7 |
+
+---
 
 ## Pré-requisitos
 
@@ -29,33 +88,27 @@ Ferramenta de documentação pessoal estilo Notion, feita para uso desktop com a
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
-- **Xcode Command Line Tools** (macOS):
-  ```bash
-  xcode-select --install
-  ```
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`)
 
-## Instalação
+---
+
+## Instalação e desenvolvimento
 
 ```bash
-# 1. Clone ou baixe o projeto
+# 1. Clone o repositório
+git clone https://github.com/gabrielsyphan/documentaai.git
 cd documentaai
 
-# 2. Instale as dependências JavaScript
+# 2. Instale as dependências
 npm install
 
-# 3. Adicione o Rust ao PATH (se recém instalado)
-source "$HOME/.cargo/env"
-```
-
-## Rodando em modo desenvolvimento
-
-```bash
+# 3. Inicie em modo desenvolvimento (abre o app Tauri)
 npm run tauri dev
 ```
 
-Na primeira vez, o Cargo vai compilar o backend Rust — isso demora alguns minutos. As execuções seguintes são muito mais rápidas graças ao cache incremental.
+Na primeira execução o Cargo compila o backend Rust — demora alguns minutos. As seguintes são rápidas graças ao cache incremental.
 
-## Build para produção
+### Build para produção
 
 ```bash
 npm run tauri build
@@ -63,28 +116,11 @@ npm run tauri build
 
 O instalador é gerado em `src-tauri/target/release/bundle/`.
 
-## Estrutura do projeto
-
-```
-documentaai/
-├── src/                    # Frontend React
-│   ├── components/
-│   │   ├── editor/         # Editor BlockNote
-│   │   ├── sidebar/        # Árvore de páginas
-│   │   └── layout/         # Shell do app
-│   ├── store/              # Estado global (Zustand)
-│   ├── lib/db.ts           # Camada SQLite
-│   └── types/              # Tipos TypeScript
-├── src-tauri/              # Backend Rust (Tauri)
-│   ├── src/
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-└── CLAUDE.md               # Contexto para desenvolvimento com IA
-```
+---
 
 ## Dados locais
 
-O banco SQLite é salvo automaticamente em:
+O banco SQLite fica salvo em:
 
 | Sistema | Caminho |
 |---|---|
@@ -92,9 +128,11 @@ O banco SQLite é salvo automaticamente em:
 | Linux | `~/.local/share/com.documentaai.app/documentaai.db` |
 | Windows | `%APPDATA%\com.documentaai.app\documentaai.db` |
 
-## Integração MCP (Claude Code, Kiro, Cursor…)
+---
 
-O DocumentaAI inclui um servidor MCP que permite que ferramentas de IA leiam e escrevam páginas diretamente — sem precisar que o app esteja aberto.
+## Integração MCP
+
+O DocumentaAI inclui um servidor MCP que permite que ferramentas de IA leiam e escrevam páginas diretamente, sem precisar que o app esteja aberto.
 
 ### Setup (só uma vez)
 
@@ -119,23 +157,41 @@ Adicione em `~/.claude.json`:
 }
 ```
 
-Reinicie o Claude Code. As ferramentas estarão disponíveis automaticamente.
-
 ### Ferramentas disponíveis
 
-| Ferramenta | O que faz |
+| Ferramenta | Descrição |
 |---|---|
 | `list_pages` | Lista todas as páginas com título, emoji e hierarquia |
-| `get_page` | Retorna conteúdo completo de uma página (texto + BlockNote JSON) |
+| `get_page` | Retorna o conteúdo completo de uma página |
 | `search_pages` | Busca páginas por título |
-| `create_page` | Cria uma nova página (aceita texto simples ou BlockNote JSON) |
-| `update_page` | Atualiza título, conteúdo ou emoji de uma página existente |
-| `delete_page` | Remove uma página e todas as suas subpáginas |
+| `create_page` | Cria uma nova página (texto simples ou BlockNote JSON) |
+| `update_page` | Atualiza título, conteúdo ou emoji |
+| `delete_page` | Remove uma página e todas as subpáginas |
 
-### Configuração via variável de ambiente
+---
 
-Se o banco estiver em um caminho diferente do padrão:
+## Estrutura do projeto
 
-```bash
-DOCUMENTAAI_DB_PATH=/seu/caminho/documentaai.db node mcp-server/dist/index.js
 ```
+documentaai/
+├── src/                        # Frontend React
+│   ├── components/
+│   │   ├── editor/             # BlockNote + Excalidraw + extensões
+│   │   ├── sidebar/            # Árvore de páginas + daily notes
+│   │   └── layout/             # AppShell, titlebar
+│   ├── store/                  # Estado global (Zustand)
+│   ├── lib/                    # db.ts, export, tags, templates…
+│   └── types/
+├── src-tauri/                  # Backend Rust (Tauri)
+│   ├── src/lib.rs              # Comandos + atalho global + tray
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── mcp-server/                 # Servidor MCP (Node.js)
+└── CLAUDE.md                   # Contexto para desenvolvimento com IA
+```
+
+---
+
+## Licença
+
+MIT
