@@ -1118,17 +1118,19 @@ function DailyAgenda({ date }: { date: string }) {
 
   return (
     <div className="daily-agenda">
-      <div className="daily-agenda-header">
-        <CalendarClock size={12} />
-        Agenda do dia
-      </div>
-      <div className="daily-agenda-list">
-        {reminders.map((p) => (
-          <button key={p.id} className="daily-agenda-item" onClick={() => selectPage(p.id)}>
-            <span className="daily-agenda-emoji">{p.emoji ?? <FileText size={12} />}</span>
-            <span className="daily-agenda-title">{p.title || "Sem título"}</span>
-          </button>
-        ))}
+      <div className="daily-agenda-inner">
+        <div className="daily-agenda-header">
+          <CalendarClock size={12} />
+          Agenda do dia
+        </div>
+        <div className="daily-agenda-list">
+          {reminders.map((p) => (
+            <button key={p.id} className="daily-agenda-item" onClick={() => selectPage(p.id)}>
+              <span className="daily-agenda-emoji">{p.emoji ?? <FileText size={12} />}</span>
+              <span className="daily-agenda-title">{p.title || "Sem título"}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

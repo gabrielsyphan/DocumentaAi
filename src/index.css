@@ -2083,12 +2083,20 @@ html, body, #root {
 
 /* ── Daily Agenda ─────────────────────────────────────────────────────────── */
 
+/* Agenda do dia — alinha com a coluna do editor (mesmo max-width e margin que .bn-editor) */
 .daily-agenda {
-  margin: 0 16px 8px;
+  width: 100%;
+  max-width: clamp(640px, 82%, 1200px);
+  margin: 0 auto 12px;
+  padding: 10px 56px;
+  box-sizing: border-box;
+}
+
+.daily-agenda-inner {
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--sidebar-hover);
+  background: var(--accent-faint, rgba(148,128,245,0.06));
 }
 
 .daily-agenda-header {
@@ -2097,33 +2105,33 @@ html, body, #root {
   gap: 6px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--sidebar-text);
-  opacity: 0.7;
+  color: var(--accent);
   margin-bottom: 8px;
 }
 
 .daily-agenda-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .daily-agenda-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 5px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 12px;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text, var(--editor-text));
+  font-size: 13px;
   cursor: pointer;
   text-align: left;
+  width: 100%;
   transition: background 0.1s;
 }
 .daily-agenda-item:hover { background: var(--sidebar-hover); }
-.daily-agenda-emoji { flex-shrink: 0; }
+.daily-agenda-emoji { flex-shrink: 0; font-size: 14px; }
 .daily-agenda-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Daily Calendar ─────────────────────────────────────────────────────────── */
@@ -2978,6 +2986,122 @@ html, body, #root {
   color: rgba(255,255,255,0.4);
   pointer-events: none;
 }
+
+/* ── Popup de lembretes ───────────────────────────────────────────────────────── */
+
+.reminder-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 20px 24px;
+  pointer-events: none;
+}
+
+.reminder-popup {
+  pointer-events: all;
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  animation: popup-slide-in 0.2s ease;
+  overflow: hidden;
+}
+
+@keyframes popup-slide-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.reminder-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reminder-popup-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.reminder-popup-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--sidebar-text);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.1s;
+}
+.reminder-popup-close:hover { color: var(--sidebar-text-active); }
+
+.reminder-popup-date {
+  font-size: 11px;
+  color: var(--sidebar-text);
+  margin: 8px 14px 4px;
+  text-transform: capitalize;
+}
+
+.reminder-popup-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.reminder-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text, var(--editor-text));
+  font-size: 13px;
+  width: 100%;
+  transition: background 0.1s;
+}
+.reminder-popup-item:hover { background: var(--sidebar-hover); }
+
+.reminder-popup-emoji { font-size: 15px; flex-shrink: 0; }
+
+.reminder-popup-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.reminder-popup-dismiss {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 8px 14px 12px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.reminder-popup-dismiss:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
 
 /* ── Excalidraw theme overrides ──────────────────────────────────────────────
    Os seletores usam [data-theme] + .canvas-area para ter especificidade maior

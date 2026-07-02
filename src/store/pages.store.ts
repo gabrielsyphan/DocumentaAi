@@ -225,17 +225,14 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     const { selectedPageId, navHistory, navIndex, pages } = get();
     if (id === selectedPageId) return;
 
-    // Se estava em uma daily note vazia criada há menos de 5 min, descarta
+    // Daily note vazia ao sair → descarta sempre, sem restrição de tempo
     if (selectedPageId) {
       const prev = pages.find((p) => p.id === selectedPageId);
       if (prev?.type === "daily" && isDailyNoteEmpty(prev.content)) {
-        const ageMs = Date.now() - new Date(prev.created_at).getTime();
-        if (ageMs < 5 * 60 * 1000) {
-          removePage(selectedPageId).then(() => {
-            const updated = get().pages.filter((p) => p.id !== selectedPageId);
-            set({ pages: updated, tree: buildTree(updated.filter((p) => p.type !== "daily")) });
-          });
-        }
+        removePage(selectedPageId).then(() => {
+          const updated = get().pages.filter((p) => p.id !== selectedPageId);
+          set({ pages: updated, tree: buildTree(updated.filter((p) => p.type !== "daily")) });
+        });
       }
     }
 
