@@ -46,17 +46,22 @@ export default function QuickCaptureApp() {
   const [images, setImages]         = useState<ImageAttachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const textareaRef  = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef   = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+  // true somente quando a janela foi fechada e vai reabrir — file picker
+  // também dispara onFocusChanged mas NÃO deve limpar o conteúdo
+  const isReopening = useRef(true);
 
-  // Reset quando a janela ganha foco (atalho global reabriu)
+  // Reseta só quando a janela reabriu de verdade (não ao voltar do file picker)
   useEffect(() => {
     const unlisten = WIN.onFocusChanged(({ payload: focused }) => {
-      if (focused) {
+      if (!focused) return;
+      setTimeout(() => textareaRef.current?.focus(), 50);
+      if (isReopening.current) {
+        isReopening.current = false;
         setContent("");
         setStatus("idle");
         setImages([]);
-        setTimeout(() => textareaRef.current?.focus(), 50);
       }
     });
     return () => { unlisten.then((fn) => fn()); };
@@ -71,6 +76,7 @@ export default function QuickCaptureApp() {
   }, []);
 
   const handleClose = useCallback(async () => {
+    isReopening.current = true; // próxima abertura deve resetar
     setContent("");
     setStatus("idle");
     setImages([]);
