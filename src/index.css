@@ -2455,6 +2455,12 @@ html, body, #root {
 .trash-item:hover .trash-action-btn { opacity: 0.6; }
 .trash-action-btn:hover { background: var(--sidebar-hover); opacity: 1 !important; }
 .trash-action-btn.danger:hover { color: #f87171; }
+.trash-confirm-row .trash-action-btn {
+  opacity: 1;
+  width: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+}
 
 /* ── Presentation Mode ───────────────────────────────────────────────────────── */
 
