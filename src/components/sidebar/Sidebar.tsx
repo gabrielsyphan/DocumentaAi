@@ -5,6 +5,7 @@ import {
   FileUp, Palette, BookOpen, Network, Check,
 } from "lucide-react";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
@@ -209,6 +210,8 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const { theme, setTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sortMenuRect, setSortMenuRect] = useState<DOMRect | null>(null);
+  const sortBtnRef = useRef<HTMLButtonElement>(null);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showDailySection, setShowDailySection] = useState(true);
   const [showReview, setShowReview] = useState(false);
@@ -243,7 +246,10 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   useEffect(() => {
     if (!showSortMenu) return;
     const close = (e: MouseEvent) => {
-      if (!sortMenuRef.current?.contains(e.target as Node)) setShowSortMenu(false);
+      const target = e.target as Node;
+      const inMenu = sortMenuRef.current?.contains(target);
+      const inBtn  = sortBtnRef.current?.contains(target);
+      if (!inMenu && !inBtn) setShowSortMenu(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -404,30 +410,44 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
 
       <div className="sidebar-section-label pages-section-label">
         <span>Páginas</span>
-        <div className="sort-menu-wrapper" ref={sortMenuRef}>
-          <button
-            className={`sort-btn${pageSort !== "default" ? " active" : ""}`}
-            onClick={() => setShowSortMenu((v) => !v)}
-            title="Ordenar páginas"
-          >
-            {pageSort === "title" ? <ArrowUpAZ size={12} /> : <Clock size={12} />}
-            {SORT_LABELS[pageSort]}
-          </button>
-          {showSortMenu && (
-            <div className="sort-menu">
-              {SORT_CYCLES.map((s) => (
-                <button
-                  key={s}
-                  className={`sort-menu-item${pageSort === s ? " active" : ""}`}
-                  onMouseDown={() => { setPageSort(s); setShowSortMenu(false); }}
-                >
-                  {SORT_LABELS[s]}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <button
+          ref={sortBtnRef}
+          className={`sort-btn${pageSort !== "default" ? " active" : ""}`}
+          onClick={() => {
+            const rect = sortBtnRef.current?.getBoundingClientRect() ?? null;
+            setSortMenuRect(rect);
+            setShowSortMenu((v) => !v);
+          }}
+          title="Ordenar páginas"
+        >
+          {pageSort === "title" ? <ArrowUpAZ size={12} /> : <Clock size={12} />}
+          {SORT_LABELS[pageSort]}
+        </button>
       </div>
+
+      {showSortMenu && sortMenuRect && createPortal(
+        <div
+          ref={sortMenuRef}
+          className="sort-menu"
+          style={{
+            position: "fixed",
+            top: sortMenuRect.bottom + 4,
+            left: sortMenuRect.right,
+            transform: "translateX(-100%)",
+          }}
+        >
+          {SORT_CYCLES.map((s) => (
+            <button
+              key={s}
+              className={`sort-menu-item${pageSort === s ? " active" : ""}`}
+              onMouseDown={() => { setPageSort(s); setShowSortMenu(false); }}
+            >
+              {SORT_LABELS[s]}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
 
       <nav className="page-tree">
         {filteredPages ? (

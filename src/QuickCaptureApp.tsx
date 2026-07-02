@@ -435,8 +435,8 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     height: "100vh",
-    background: "#1c1c1e",
-    color: "#e8e8e6",
+    background: "var(--sidebar-bg)",
+    color: "var(--sidebar-text-active)",
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     fontSize: 14,
     overflow: "hidden",
@@ -448,7 +448,7 @@ const styles = {
   },
 
   rootDragOver: {
-    outline: "2px solid #9480f5",
+    outline: "2px solid var(--accent)",
     outlineOffset: "-2px",
   },
 
@@ -457,8 +457,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "10px 14px 8px",
-    background: "#252527",
-    borderBottom: "1px solid #333",
+    background: "var(--editor-bg)",
+    borderBottom: "1px solid var(--border)",
     cursor: "default",
     userSelect: "none" as const,
     flexShrink: 0,
@@ -467,15 +467,16 @@ const styles = {
   headerLabel: {
     fontSize: 12,
     fontWeight: 600,
-    color: "#a0a0a0",
+    color: "var(--sidebar-text)",
     letterSpacing: "0.02em",
     textTransform: "uppercase" as const,
   },
 
   headerHint: {
     fontSize: 11,
-    color: "#555",
+    color: "var(--sidebar-text)",
     fontFamily: "ui-monospace, monospace",
+    opacity: 0.6,
   },
 
   textarea: {
@@ -485,7 +486,7 @@ const styles = {
     background: "transparent",
     border: "none",
     outline: "none",
-    color: "#e8e8e6",
+    color: "var(--editor-text)",
     fontSize: 15,
     lineHeight: 1.65,
     resize: "none" as const,
@@ -503,15 +504,16 @@ const styles = {
     margin: 0,
     fontSize: 15,
     lineHeight: 1.65,
-    color: "#e8e8e6",
+    color: "var(--editor-text)",
     whiteSpace: "pre-wrap" as const,
   },
 
   transcriptPlaceholder: {
     margin: 0,
     fontSize: 14,
-    color: "#555",
+    color: "var(--sidebar-text)",
     fontStyle: "italic" as const,
+    opacity: 0.5,
   },
 
   transcriptError: {
@@ -529,7 +531,7 @@ const styles = {
     overflowX: "auto" as const,
     overflowY: "hidden" as const,
     flexShrink: 0,
-    borderTop: "1px solid #2a2a2a",
+    borderTop: "1px solid var(--border)",
   },
 
   thumbWrap: {
@@ -539,8 +541,8 @@ const styles = {
     height: 72,
     borderRadius: 6,
     overflow: "hidden",
-    border: "1px solid #3a3a3a",
-    background: "#111",
+    border: "1px solid var(--border)",
+    background: "var(--editor-bg)",
   },
 
   thumb: {
@@ -557,7 +559,7 @@ const styles = {
     width: 18,
     height: 18,
     borderRadius: 4,
-    background: "rgba(0,0,0,0.7)",
+    background: "rgba(0,0,0,0.65)",
     border: "none",
     color: "#ccc",
     cursor: "pointer",
@@ -572,14 +574,14 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "8px 12px 10px",
-    borderTop: "1px solid #2d2d2d",
-    background: "#1c1c1e",
+    borderTop: "1px solid var(--border)",
+    background: "var(--sidebar-bg)",
     flexShrink: 0,
   },
 
   dest: {
     fontSize: 12,
-    color: "#666",
+    color: "var(--sidebar-text)",
     display: "flex",
     alignItems: "center",
   },
@@ -596,20 +598,20 @@ const styles = {
     justifyContent: "center",
     width: 30,
     height: 30,
-    border: "1px solid #3a3a3a",
+    border: "1px solid var(--border)",
     borderRadius: 7,
     background: "transparent",
-    color: "#888",
+    color: "var(--sidebar-text)",
     cursor: "pointer",
     fontFamily: "inherit",
   },
 
   cancelBtn: {
     padding: "5px 14px",
-    border: "1px solid #3a3a3a",
+    border: "1px solid var(--border)",
     borderRadius: 7,
     background: "transparent",
-    color: "#888",
+    color: "var(--sidebar-text)",
     fontSize: 13,
     cursor: "pointer",
     fontFamily: "inherit",
@@ -619,7 +621,7 @@ const styles = {
     padding: "5px 16px",
     border: "none",
     borderRadius: 7,
-    background: "#9480f5",
+    background: "var(--accent)",
     color: "#fff",
     fontSize: 13,
     fontWeight: 600,
