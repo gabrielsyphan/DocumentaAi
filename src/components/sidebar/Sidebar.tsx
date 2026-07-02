@@ -2,11 +2,13 @@ import {
   Plus, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
-  FileUp, Palette, BookOpen, Network, Check,
+  FileUp, Palette, BookOpen, Network, Check, HardDriveDownload, HardDriveUpload,
 } from "lucide-react";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { createPortal } from "react-dom";
+import { vacuumInto } from "../../lib/db";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
@@ -221,10 +223,39 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showGraph, setShowGraph] = useState(false);
   const dueCount = useDueCount();
   const [appVersion, setAppVersion] = useState("");
+  const [backupStatus, setBackupStatus] = useState<"idle" | "busy" | "ok" | "err">("idle");
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const themePickerRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleBackup() {
+    setBackupStatus("busy");
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const savePath = await invoke<string | null>("pick_backup_save_path", {
+        suggestedName: `documentaai-backup-${today}.db`,
+      });
+      if (!savePath) { setBackupStatus("idle"); return; }
+      await vacuumInto(savePath);
+      setBackupStatus("ok");
+      setTimeout(() => setBackupStatus("idle"), 2000);
+    } catch {
+      setBackupStatus("err");
+      setTimeout(() => setBackupStatus("idle"), 2500);
+    }
+  }
+
+  async function handleRestore() {
+    setConfirmRestore(false);
+    try {
+      await invoke("restore_from_backup");
+      // if user cancelled the file dialog the command returns without restarting
+    } catch (e) {
+      if (e !== "cancelled") console.error("Restore error:", e);
+    }
+  }
 
   async function handleImportMarkdown(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -488,7 +519,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
             onClick={() => setShowDailySection((v) => !v)}
           >
             <ChevronDown size={11} className={`trash-chevron ${showDailySection ? "open" : ""}`} />
-            Daily Notes
+            Notas diárias
           </button>
           <button
             className="daily-today-btn"
@@ -564,6 +595,47 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         >
           <Network size={16} />
         </button>
+
+        {/* Backup / Restore */}
+        <button
+          className={`theme-toggle${backupStatus === "ok" ? " active-footer" : ""}`}
+          onClick={handleBackup}
+          disabled={backupStatus === "busy"}
+          title={
+            backupStatus === "busy" ? "Exportando…"
+            : backupStatus === "ok"  ? "Backup exportado!"
+            : backupStatus === "err" ? "Erro ao exportar"
+            : "Exportar backup"
+          }
+        >
+          <HardDriveDownload size={16} />
+        </button>
+        {confirmRestore ? (
+          <span className="trash-confirm-row" style={{ gap: 2 }}>
+            <button
+              className="trash-action-btn"
+              style={{ opacity: 1, width: "auto", padding: "2px 7px", fontSize: 11 }}
+              onClick={handleRestore}
+            >
+              Sim
+            </button>
+            <button
+              className="trash-action-btn"
+              style={{ opacity: 1, width: "auto", padding: "2px 7px", fontSize: 11 }}
+              onClick={() => setConfirmRestore(false)}
+            >
+              Não
+            </button>
+          </span>
+        ) : (
+          <button
+            className="theme-toggle"
+            onClick={() => setConfirmRestore(true)}
+            title="Importar backup (substitui todos os dados)"
+          >
+            <HardDriveUpload size={16} />
+          </button>
+        )}
       </div>
 
       {showReview && <ReviewSession onClose={() => setShowReview(false)} />}

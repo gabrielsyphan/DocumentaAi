@@ -283,6 +283,50 @@ fn activate_prev_app() {
     }
 }
 
+/// Returns the path chosen by the user via a save-file dialog (for backup export).
+/// The frontend then calls VACUUM INTO on this path so the backup is always consistent.
+#[tauri::command]
+async fn pick_backup_save_path(app: tauri::AppHandle, suggested_name: String) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let path = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_name)
+        .add_filter("DocumentaAI Backup", &["db"])
+        .blocking_save_file();
+    Ok(path.and_then(|p| p.as_path().map(|p| p.to_string_lossy().into_owned())))
+}
+
+/// Opens a file picker, copies the chosen backup .db over the current DB,
+/// removes stale WAL files, and restarts the app so the restored data loads cleanly.
+#[tauri::command]
+async fn restore_from_backup(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let backup_path = app
+        .dialog()
+        .file()
+        .add_filter("DocumentaAI Backup", &["db"])
+        .blocking_pick_file();
+
+    let src = match backup_path {
+        None => return Err("cancelled".to_string()),
+        Some(p) => p.as_path().map(|p| p.to_path_buf()).ok_or("Caminho inválido")?,
+    };
+
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = data_dir.join("documentaai.db");
+
+    std::fs::copy(&src, &db_path).map_err(|e| format!("Erro ao restaurar: {e}"))?;
+
+    // Remove WAL/SHM so the restored DB starts without stale journal files
+    let _ = std::fs::remove_file(data_dir.join("documentaai.db-wal"));
+    let _ = std::fs::remove_file(data_dir.join("documentaai.db-shm"));
+
+    app.request_restart();
+    Ok(())
+}
+
 /// Hides the quick-capture window and returns focus to the previously-frontmost app.
 #[tauri::command]
 fn close_quick_capture(app: tauri::AppHandle) {
@@ -317,6 +361,7 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::default().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         // MacosLauncher is required by tauri-plugin-autostart 2.x on all platforms.
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -349,6 +394,8 @@ pub fn run() {
             request_speech_permission,
             start_transcription,
             stop_transcription,
+            pick_backup_save_path,
+            restore_from_backup,
         ])
         .setup(|app| {
             // When launched at login with --hidden, keep the main window hidden

@@ -230,3 +230,11 @@ export async function deleteFlashcard(id: string): Promise<void> {
   const database = await getDb();
   await database.execute("DELETE FROM flashcards WHERE id = $1", [id]);
 }
+
+// Creates a consistent full backup at destPath using VACUUM INTO (includes WAL data).
+export async function vacuumInto(destPath: string): Promise<void> {
+  const database = await getDb();
+  // VACUUM INTO copies the entire DB to destPath; path must be a string literal in SQL.
+  const safe = destPath.replace(/'/g, "''");
+  await database.execute(`VACUUM INTO '${safe}'`);
+}
