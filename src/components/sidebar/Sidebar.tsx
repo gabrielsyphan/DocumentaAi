@@ -433,6 +433,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
             position: "fixed",
             top: sortMenuRect.bottom + 4,
             left: sortMenuRect.right,
+            right: "auto",
             transform: "translateX(-100%)",
           }}
         >
