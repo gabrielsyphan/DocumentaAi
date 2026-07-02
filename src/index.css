@@ -716,6 +716,12 @@ html, body, #root {
   flex: 1;
 }
 
+/* Alinha o botão de foco com o título (que desce padding-top: 52px) */
+.canvas-topbar .topbar-actions {
+  top: calc(52px + 6px);
+  right: 24px;
+}
+
 .canvas-area {
   flex: 1;
   min-height: 0;        /* essencial: sem isso, Excalidraw não recebe altura real */
