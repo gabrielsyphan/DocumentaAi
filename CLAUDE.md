@@ -246,16 +246,18 @@ cd mcp-server && npm install && npm run build
 - [x] Drag region no header para mover a janela, `⌘↵` para salvar, `Esc` para fechar
 - [x] Vite multi-page: `quick-capture.html` como segundo entry point
 
-#### Flashcards / Repetição espaçada
-- [ ] Marcar trechos de uma página como cartão de estudo
-- [ ] Sistema de revisão com intervalos (algoritmo SM-2 ou similar)
-- [ ] Sessão de revisão com interface frente/verso e botões Fácil / Difícil / Errei
-- [ ] Contador de cards pendentes visível na sidebar
+#### Flashcards / Repetição espaçada ✅ concluído
+- [x] Tabela `flashcards` no SQLite com algoritmo SM-2 completo
+- [x] Botão BookOpen no topbar do editor: cria/gerencia cards (frente pré-preenchida com seleção)
+- [x] Sessão de revisão via sidebar: flip frente/verso, Errei/Difícil/OK/Fácil
+- [x] Badge vermelho no footer da sidebar mostra cards vencidos hoje
 
-#### Graph view
-- [ ] Mapa visual das conexões entre páginas (depende de Backlinks implementado)
-- [ ] Renderizado com D3.js ou similar
-- [ ] Nós = páginas, arestas = referências entre elas
+#### Graph view ✅ concluído
+- [x] Modal fullscreen com grafo de força (D3 v7 + SVG), lazy-loaded
+- [x] Nós coloridos por tipo, tamanho proporcional ao grau de conexão
+- [x] Detecta `[[título]]` e wikilinks do BlockNote; setas direcionais nas arestas
+- [x] Drag, zoom/pan, clique navega para página, tooltip com título completo
+- [x] Botão Network no footer da sidebar
 
 ### Fase 7 — Conteúdo rico ✅ concluída
 

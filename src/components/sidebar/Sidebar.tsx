@@ -2,9 +2,9 @@ import {
   Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
-  FileUp, Palette, BookOpen,
+  FileUp, Palette, BookOpen, Network,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
@@ -13,6 +13,8 @@ import PageItem from "./PageItem";
 import { DragProvider } from "./DragContext";
 import { markdownToBlocks } from "../../lib/markdown-import";
 import { useDueCount, ReviewSession } from "../flashcards/FlashcardPanel";
+
+const GraphView = lazy(() => import("../graph/GraphView"));
 
 interface Props {
   onSearch: () => void;
@@ -184,6 +186,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
   const dueCount = useDueCount();
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
@@ -499,9 +502,27 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
           <BookOpen size={16} />
           {dueCount > 0 && <span className="fc-sidebar-badge">{dueCount > 99 ? "99+" : dueCount}</span>}
         </button>
+        <button
+          className="theme-toggle"
+          onClick={() => setShowGraph(true)}
+          title="Graph View — mapa de conexões"
+        >
+          <Network size={16} />
+        </button>
       </div>
 
       {showReview && <ReviewSession onClose={() => setShowReview(false)} />}
+
+      {showGraph && (
+        <Suspense fallback={null}>
+          <GraphView
+            pages={pages}
+            selectedPageId={selectedPageId}
+            onSelectPage={selectPage}
+            onClose={() => setShowGraph(false)}
+          />
+        </Suspense>
+      )}
     </aside>
   );
 }
