@@ -5,6 +5,7 @@ import {
   FileUp, Palette, BookOpen, Network, Check,
 } from "lucide-react";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { createPortal } from "react-dom";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
@@ -219,6 +220,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showReview, setShowReview] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const dueCount = useDueCount();
+  const [appVersion, setAppVersion] = useState("");
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const themePickerRef = useRef<HTMLDivElement>(null);
@@ -235,6 +237,8 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     }
     e.target.value = "";
   }
+
+  useEffect(() => { getVersion().then(setAppVersion).catch(() => {}); }, []);
 
   useEffect(() => {
     if (!showNewMenu) return;
@@ -501,9 +505,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
       <TrashSection />
 
       <div className="sidebar-footer">
-        <span className="sidebar-shortcut-hint">
-          {/Mac/.test(navigator.platform) ? "⌘⇧Space" : "Ctrl+Shift+Space"} captura rápida
-        </span>
+        {appVersion && <span className="sidebar-shortcut-hint">v{appVersion}</span>}
         <button
           className="theme-toggle"
           onClick={() => load()}
