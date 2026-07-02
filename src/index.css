@@ -2530,6 +2530,21 @@ html, body, #root {
   overflow-x: auto;
   margin: 12px 0;
 }
+.pres-slide-body .slide-code-hl {
+  margin: 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.85em;
+}
+.pres-slide-body .slide-code-hl pre.shiki {
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 1em;
+  line-height: 1.55;
+}
 .pres-slide-body .slide-img {
   max-width: 100%;
   max-height: 380px;

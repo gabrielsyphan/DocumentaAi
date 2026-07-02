@@ -22,6 +22,21 @@ import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
 import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2 } from "lucide-react";
 
+// ── Shiki singleton para slides (separado do highlighter do editor) ───────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _slideHL: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _slideHLPromise: Promise<any> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSlideHighlighter(): Promise<any> {
+  if (_slideHL) return Promise.resolve(_slideHL);
+  if (!_slideHLPromise) {
+    _slideHLPromise = createHighlighter({ themes: ["github-dark", "github-light"], langs: SHIKI_LANGS })
+      .then((h) => { _slideHL = h; return h; });
+  }
+  return _slideHLPromise;
+}
+
 // ── Presentation helpers ──────────────────────────────────────────────────────
 
 type InlineItem = {
@@ -77,6 +92,25 @@ function renderInline(items: InlineItem[]): React.ReactNode {
   });
 }
 
+function SlideCodeBlock({ block }: { block: BNBlock }) {
+  const { theme } = useUIStore();
+  const [html, setHtml] = useState<string | null>(null);
+  const lang       = (block.props?.language as string) || "text";
+  const code       = extractText(block.content);
+  const shikiTheme = theme === "light" ? "github-light" : "github-dark";
+
+  useEffect(() => {
+    if (!lang || lang === "text" || !SHIKI_LANGS.includes(lang)) { setHtml(null); return; }
+    getSlideHighlighter().then((h) => {
+      try { setHtml(h.codeToHtml(code, { lang, theme: shikiTheme })); }
+      catch { setHtml(null); }
+    });
+  }, [code, lang, shikiTheme]);
+
+  if (html) return <div className="slide-code-hl" dangerouslySetInnerHTML={{ __html: html }} />;
+  return <pre className="slide-code"><code>{code}</code></pre>;
+}
+
 function renderSlideBlock(block: BNBlock, idx: number): React.ReactNode {
   const inline = renderInline(block.content);
   switch (block.type) {
@@ -93,7 +127,7 @@ function renderSlideBlock(block: BNBlock, idx: number): React.ReactNode {
     case "numberedListItem":
       return <li key={idx} className="slide-numbered">{inline}</li>;
     case "codeBlock":
-      return <pre key={idx} className="slide-code"><code>{extractText(block.content)}</code></pre>;
+      return <SlideCodeBlock key={idx} block={block} />;
     case "image":
       return <img key={idx} className="slide-img" src={block.props.url as string} alt={(block.props.caption as string) || ""} />;
     default:
