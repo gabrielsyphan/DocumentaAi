@@ -7,6 +7,7 @@ import {
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { createPortal } from "react-dom";
 import { vacuumInto } from "../../lib/db";
 import { usePagesStore } from "../../store/pages.store";
@@ -262,6 +263,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     setRestoreFilePath(null);
     try {
       await invoke("apply_restore", { backupPath: path });
+      await relaunch();
     } catch (e) {
       console.error("Restore error:", e);
     }
@@ -620,35 +622,55 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         >
           <HardDriveDownload size={16} />
         </button>
-        {restoreFilePath ? (
-          <span className="trash-confirm-row" style={{ gap: 2, flexShrink: 1, overflow: "hidden" }}>
-            <span style={{ fontSize: 10, color: "var(--sidebar-text)", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 80 }}>
-              {restoreFilePath.split(/[\\/]/).pop()}
-            </span>
-            <button
-              className="trash-action-btn"
-              style={{ opacity: 1, width: "auto", padding: "2px 7px", fontSize: 11 }}
-              onClick={handleApplyRestore}
-            >
-              Restaurar
-            </button>
-            <button
-              className="trash-action-btn"
-              style={{ opacity: 1, width: "auto", padding: "2px 7px", fontSize: 11 }}
-              onClick={() => setRestoreFilePath(null)}
-            >
-              Cancelar
-            </button>
-          </span>
-        ) : (
+        <div style={{ position: "relative" }}>
+          {restoreFilePath && (
+            <div style={{
+              position: "absolute", bottom: "calc(100% + 8px)", right: 0,
+              background: "var(--sidebar-bg)", border: "1px solid var(--border)",
+              borderRadius: 10, padding: "12px 14px", width: 220,
+              boxShadow: "0 6px 24px rgba(0,0,0,0.35)", zIndex: 200,
+            }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--sidebar-text-active)", marginBottom: 4 }}>
+                Restaurar backup?
+              </p>
+              <p style={{ fontSize: 11, color: "var(--sidebar-text)", opacity: 0.65, marginBottom: 6, wordBreak: "break-all" }}>
+                {restoreFilePath.split(/[\\/]/).pop()}
+              </p>
+              <p style={{ fontSize: 11, color: "#f87171", marginBottom: 12 }}>
+                Os dados atuais serão substituídos e o app será reiniciado.
+              </p>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={handleApplyRestore}
+                  style={{
+                    flex: 1, padding: "5px 0", border: "none", borderRadius: 6,
+                    background: "#f87171", color: "#fff", fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Restaurar
+                </button>
+                <button
+                  onClick={() => setRestoreFilePath(null)}
+                  style={{
+                    flex: 1, padding: "5px 0", border: "1px solid var(--border)", borderRadius: 6,
+                    background: "transparent", color: "var(--sidebar-text)", fontSize: 12,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
           <button
-            className="theme-toggle"
-            onClick={handlePickRestoreFile}
+            className={`theme-toggle${restoreFilePath ? " active-footer" : ""}`}
+            onClick={restoreFilePath ? () => setRestoreFilePath(null) : handlePickRestoreFile}
             title="Importar backup (substitui todos os dados)"
           >
             <HardDriveUpload size={16} />
           </button>
-        )}
+        </div>
       </div>
 
       {showReview && <ReviewSession onClose={() => setShowReview(false)} />}

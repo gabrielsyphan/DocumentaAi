@@ -309,8 +309,8 @@ async fn pick_restore_file(app: tauri::AppHandle) -> Result<Option<String>, Stri
     Ok(path.and_then(|p| p.as_path().map(|p| p.to_string_lossy().into_owned())))
 }
 
-/// Copies the chosen backup .db over the current DB, removes stale WAL files,
-/// and restarts the app so the restored data loads cleanly.
+/// Copies the chosen backup .db over the current DB and removes stale WAL files.
+/// The caller (JS) is responsible for restarting the app afterwards.
 #[tauri::command]
 async fn apply_restore(app: tauri::AppHandle, backup_path: String) -> Result<(), String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
@@ -323,7 +323,6 @@ async fn apply_restore(app: tauri::AppHandle, backup_path: String) -> Result<(),
     let _ = std::fs::remove_file(data_dir.join("documentaai.db-wal"));
     let _ = std::fs::remove_file(data_dir.join("documentaai.db-shm"));
 
-    app.request_restart();
     Ok(())
 }
 
