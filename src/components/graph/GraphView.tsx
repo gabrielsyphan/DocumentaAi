@@ -13,23 +13,12 @@ interface GraphNode extends d3.SimulationNodeDatum {
 interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   source: string | GraphNode;
   target: string | GraphNode;
+  kind: "wikilink" | "hierarchy";
 }
 
-function extractWikilinks(content: string | null): string[] {
-  if (!content) return [];
-  const results: string[] = [];
-  // texto literal [[título]] (formato antigo)
-  const textRe = /\[\[([^\]]+)\]\]/g;
-  let m: RegExpExecArray | null;
-  while ((m = textRe.exec(content)) !== null) results.push(m[1].toLowerCase());
-  // wikilinks do BlockNote: { type:"wikilink", props:{ pageTitle } }
-  try {
-    walkBlocks(JSON.parse(content), results);
-  } catch { /* não é JSON */ }
-  return [...new Set(results)]; // deduplicar
-}
-
-function walkBlocks(blocks: unknown[], acc: string[]) {
+// Coleta pageIds a partir do inline content do BlockNote.
+// O propSchema do WikiLink é: { title, pageId } — a prop chave é "pageId"
+function walkBlocksForIds(blocks: unknown[], acc: string[]) {
   if (!Array.isArray(blocks)) return;
   for (const b of blocks) {
     if (!b || typeof b !== "object") continue;
@@ -39,15 +28,31 @@ function walkBlocks(blocks: unknown[], acc: string[]) {
         const il = inline as Record<string, unknown>;
         if (il.type === "wikilink") {
           const props = il.props as Record<string, unknown> | undefined;
-          const title = props?.pageTitle ?? il.pageTitle;
-          if (typeof title === "string" && title.trim()) {
-            acc.push(title.trim().toLowerCase());
-          }
+          const id = props?.pageId;
+          if (typeof id === "string" && id) acc.push(id);
         }
       }
     }
-    if (Array.isArray(block.children)) walkBlocks(block.children, acc);
+    if (Array.isArray(block.children)) walkBlocksForIds(block.children, acc);
   }
+}
+
+function extractLinkedIds(content: string | null, titleToId: Map<string, string>): string[] {
+  if (!content) return [];
+  const ids: string[] = [];
+
+  // Wikilinks via BlockNote (usa pageId direto — robusto a renomeações)
+  try { walkBlocksForIds(JSON.parse(content), ids); } catch { /* não é JSON */ }
+
+  // Fallback: [[título]] como texto literal
+  const textRe = /\[\[([^\]]+)\]\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = textRe.exec(content)) !== null) {
+    const id = titleToId.get(m[1].trim().toLowerCase());
+    if (id) ids.push(id);
+  }
+
+  return [...new Set(ids)];
 }
 
 const NODE_COLORS: Record<Page["type"], string> = {
@@ -57,13 +62,8 @@ const NODE_COLORS: Record<Page["type"], string> = {
   folder:   "#64748b",
 };
 
-function nodeRadius(degree: number) {
-  return 7 + Math.min(degree * 1.5, 10);
-}
-
-function truncate(s: string, n: number) {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
+function nodeRadius(degree: number) { return 7 + Math.min(degree * 1.5, 10); }
+function truncate(s: string, n: number) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
 export default function GraphView({
   pages,
@@ -78,7 +78,7 @@ export default function GraphView({
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Refs estáveis para callbacks — nunca causam re-run do useEffect
+  // Refs estáveis para callbacks — evitam recriar a simulação a cada render
   const onSelectRef = useRef(onSelectPage);
   const onCloseRef  = useRef(onClose);
   useLayoutEffect(() => {
@@ -87,23 +87,28 @@ export default function GraphView({
   });
 
   const { nodes, links } = useMemo(() => {
-    const titleToId  = new Map(pages.map((p) => [p.title.trim().toLowerCase(), p.id]));
-    const degreeMap  = new Map<string, number>();
-    const seen       = new Set<string>();
+    const pageIds   = new Set(pages.map((p) => p.id));
+    const titleToId = new Map(pages.map((p) => [p.title.trim().toLowerCase(), p.id]));
+    const degreeMap = new Map<string, number>();
+    const seen      = new Set<string>();
     const links: GraphLink[] = [];
 
+    function addLink(src: string, tgt: string, kind: GraphLink["kind"]) {
+      const key = `${src}→${tgt}`;
+      if (seen.has(key) || !pageIds.has(src) || !pageIds.has(tgt)) return;
+      seen.add(key);
+      links.push({ source: src, target: tgt, kind });
+      degreeMap.set(src, (degreeMap.get(src) ?? 0) + 1);
+      degreeMap.set(tgt, (degreeMap.get(tgt) ?? 0) + 1);
+    }
+
     for (const page of pages) {
-      const refs = extractWikilinks(page.content);
-      for (const ref of refs) {
-        const targetId = titleToId.get(ref);
-        if (!targetId || targetId === page.id) continue;
-        const key = `${page.id}→${targetId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        links.push({ source: page.id, target: targetId });
-        degreeMap.set(page.id,   (degreeMap.get(page.id)   ?? 0) + 1);
-        degreeMap.set(targetId,  (degreeMap.get(targetId)  ?? 0) + 1);
+      // 1. Wikilinks e [[título]] no conteúdo
+      for (const tgt of extractLinkedIds(page.content, titleToId)) {
+        if (tgt !== page.id) addLink(page.id, tgt, "wikilink");
       }
+      // 2. Hierarquia pai → filho
+      if (page.parent_id) addLink(page.parent_id, page.id, "hierarchy");
     }
 
     const nodes: GraphNode[] = pages.map((p) => ({
@@ -116,7 +121,7 @@ export default function GraphView({
     return { nodes, links };
   }, [pages]);
 
-  // ── Simulação D3 — só recria quando os dados mudam, NÃO quando callbacks mudam ──
+  // ── Simulação D3 — só recria quando os dados mudam ──────────────────────────
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -129,51 +134,58 @@ export default function GraphView({
 
     const svg = d3.select(el).attr("width", W).attr("height", H);
 
-    // Seta direcional
-    svg.append("defs").append("marker")
-      .attr("id", "gv-arrow")
-      .attr("viewBox", "0 -4 8 8")
-      .attr("refX", 16)
-      .attr("markerWidth", 5)
-      .attr("markerHeight", 5)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("d", "M0,-4L8,0L0,4")
-      .attr("fill", "rgba(148,128,245,0.4)");
+    // Marcadores de seta diferenciados por tipo de aresta
+    const defs = svg.append("defs");
+    [
+      { id: "gv-arrow-wiki", color: "rgba(148,128,245,0.6)" },
+      { id: "gv-arrow-hier", color: "rgba(100,116,139,0.5)" },
+    ].forEach(({ id, color }) => {
+      defs.append("marker")
+        .attr("id", id)
+        .attr("viewBox", "0 -4 8 8")
+        .attr("refX", 16).attr("refY", 0)
+        .attr("markerWidth", 5).attr("markerHeight", 5)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-4L8,0L0,4")
+        .attr("fill", color);
+    });
 
     const container = svg.append("g").attr("class", "graph-root");
 
-    // Zoom/pan
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.15, 4])
       .on("zoom", (ev) => container.attr("transform", ev.transform));
     svg.call(zoom);
-    // Centraliza o grafo
     svg.call(zoom.transform, d3.zoomIdentity.translate(W / 2, H / 2));
 
-    // Copia dos dados para a simulação
     const simNodes: GraphNode[] = nodes.map((n) => ({ ...n }));
-    const simLinks: GraphLink[] = links.map((l) => ({ source: l.source as string, target: l.target as string }));
+    const simLinks: GraphLink[] = links.map((l) => ({
+      source: l.source as string,
+      target: l.target as string,
+      kind:   l.kind,
+    }));
 
     const simulation = d3.forceSimulation<GraphNode>(simNodes)
       .force("link",      d3.forceLink<GraphNode, GraphLink>(simLinks)
                             .id((d) => d.id)
-                            .distance(100)
-                            .strength(0.5))
-      .force("charge",    d3.forceManyBody<GraphNode>().strength(-250))
+                            .distance((l) => (l as GraphLink).kind === "hierarchy" ? 70 : 110)
+                            .strength(0.6))
+      .force("charge",    d3.forceManyBody<GraphNode>().strength(-260))
       .force("center",    d3.forceCenter(0, 0))
       .force("collision", d3.forceCollide<GraphNode>().radius((d) => nodeRadius(d.degree) + 6));
 
-    // Arestas
     const linkSel = container.append("g")
       .selectAll<SVGLineElement, GraphLink>("line")
       .data(simLinks)
       .join("line")
-      .attr("stroke", "rgba(148,128,245,0.35)")
-      .attr("stroke-width", 1.2)
-      .attr("marker-end", "url(#gv-arrow)");
+      .attr("stroke",           (d) => d.kind === "wikilink"
+        ? "rgba(148,128,245,0.45)"
+        : "rgba(100,116,139,0.4)")
+      .attr("stroke-width",     (d) => d.kind === "hierarchy" ? 1 : 1.5)
+      .attr("stroke-dasharray", (d) => d.kind === "hierarchy" ? "4 3" : null)
+      .attr("marker-end",       (d) => `url(#${d.kind === "wikilink" ? "gv-arrow-wiki" : "gv-arrow-hier"})`);
 
-    // Nós
     const nodeG = container.append("g")
       .selectAll<SVGGElement, GraphNode>("g")
       .data(simNodes)
@@ -201,7 +213,6 @@ export default function GraphView({
       .attr("fill", "var(--sidebar-text)")
       .attr("pointer-events", "none");
 
-    // Tooltip
     const tooltip = d3.select("body").append("div").attr("class", "graph-tooltip");
     nodeG
       .on("mouseenter", (ev, d) => tooltip.style("display","block").style("left",`${ev.pageX+10}px`).style("top",`${ev.pageY-28}px`).text(d.title))
@@ -217,27 +228,27 @@ export default function GraphView({
       nodeG.attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
     });
 
-    return () => {
-      simulation.stop();
-      tooltip.remove();
-    };
-  }, [nodes, links]); // ← SEM onSelectPage/onClose — usam refs estáveis
+    return () => { simulation.stop(); tooltip.remove(); };
+  }, [nodes, links]);
 
-  // ── Atualiza destaque do nó selecionado sem recriar a simulação ──
+  // Atualiza destaque do nó selecionado sem recriar a simulação
   useEffect(() => {
     if (!svgRef.current) return;
     d3.select(svgRef.current)
       .selectAll<SVGCircleElement, GraphNode>(".graph-node circle")
       .attr("stroke",       (d) => d.id === selectedPageId ? "#fff" : "transparent")
       .attr("stroke-width", 2);
-  }, [selectedPageId, nodes]); // nodes garante que o efeito roda após o SVG estar pronto
+  }, [selectedPageId, nodes]);
+
+  const wikilinkCount  = links.filter((l) => l.kind === "wikilink").length;
+  const hierarchyCount = links.filter((l) => l.kind === "hierarchy").length;
 
   return (
     <div className="graph-overlay" onClick={onClose}>
       <div className="graph-modal" onClick={(e) => e.stopPropagation()}>
         <div className="graph-header">
           <span className="graph-title">
-            Graph View — {nodes.length} páginas · {links.length} conexão{links.length !== 1 ? "ões" : ""}
+            Graph View — {nodes.length} páginas · {wikilinkCount} wikilink{wikilinkCount !== 1 ? "s" : ""} · {hierarchyCount} hierarquia{hierarchyCount !== 1 ? "s" : ""}
           </span>
           <button className="fc-close" onClick={onClose}><X size={14} /></button>
         </div>
@@ -249,9 +260,17 @@ export default function GraphView({
               {type}
             </span>
           ))}
+          <span className="graph-legend-item">
+            <span style={{ display:"inline-block", width:16, borderTop:"1.5px solid rgba(148,128,245,0.7)", verticalAlign:"middle", marginRight:4 }} />
+            wikilink
+          </span>
+          <span className="graph-legend-item">
+            <span style={{ display:"inline-block", width:16, borderTop:"1px dashed rgba(100,116,139,0.7)", verticalAlign:"middle", marginRight:4 }} />
+            hierarquia
+          </span>
           {links.length === 0 && (
             <span className="graph-no-links">
-              Sem conexões — escreva <code>[[título]]</code> em qualquer página para criar um link
+              Sem conexões — use <code>[[título]]</code> para wikilinks ou organize páginas como subpáginas
             </span>
           )}
           <span className="graph-hint">Arraste · Scroll zoom · Clique abre página</span>
