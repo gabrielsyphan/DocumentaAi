@@ -16,11 +16,11 @@ import { tagColor, normalizeTag } from "../../lib/tags";
 import { useTTS, countWords, type TTSState } from "../../lib/tts";
 import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
-import { getAllSnippets, saveCustomSnippet } from "../../lib/snippets";
+import { getAllSnippets, saveCustomSnippet, loadCustomSnippets, deleteCustomSnippet, type Snippet } from "../../lib/snippets";
 import { CreateFlashcardModal } from "../flashcards/FlashcardPanel";
 import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool } from "lucide-react";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2 } from "lucide-react";
 
 // ── Presentation helpers ──────────────────────────────────────────────────────
 
@@ -242,6 +242,9 @@ export default function Editor({ pageId }: Props) {
   const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [showFlashcardModal, setShowFlashcardModal] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
+  const [showSnippetModal, setShowSnippetModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingSnippetBlocks, setPendingSnippetBlocks] = useState<any[]>([]);
 
   useEffect(() => {
     if (!pageId) return;
@@ -613,16 +616,9 @@ export default function Editor({ pageId }: Props) {
                   className="export-menu-item"
                   onMouseDown={() => {
                     setShowExport(false);
-                    const name = prompt("Nome do snippet:");
-                    if (!name) return;
-                    const trigger = prompt("Atalho (ex: reuniao):", name.toLowerCase().replace(/\s+/g, "")) ?? "";
-                    saveCustomSnippet({
-                      id: crypto.randomUUID(),
-                      name,
-                      trigger,
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      blocks: stripBlockIds(editor.document as any),
-                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    setPendingSnippetBlocks(stripBlockIds(editor.document as any));
+                    setShowSnippetModal(true);
                   }}
                 >
                   <Scissors size={13} /> Salvar como snippet
@@ -736,7 +732,100 @@ export default function Editor({ pageId }: Props) {
           }}
         />
       )}
+
+      {showSnippetModal && (
+        <SnippetModal
+          pendingBlocks={pendingSnippetBlocks}
+          onClose={() => setShowSnippetModal(false)}
+        />
+      )}
     </>
+  );
+}
+
+// ── Snippet Modal ─────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function SnippetModal({ pendingBlocks, onClose }: { pendingBlocks: any[]; onClose: () => void }) {
+  const [name, setName]       = useState("");
+  const [trigger, setTrigger] = useState("");
+  const [customs, setCustoms] = useState<Snippet[]>(() => loadCustomSnippets());
+  const [saved, setSaved]     = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { nameRef.current?.focus(); }, []);
+
+  function handleSave() {
+    const n = name.trim();
+    if (!n) return;
+    const t = trigger.trim() || n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
+    saveCustomSnippet({ id: crypto.randomUUID(), name: n, trigger: t, blocks: pendingBlocks });
+    setCustoms(loadCustomSnippets());
+    setName("");
+    setTrigger("");
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  function handleDelete(id: string) {
+    deleteCustomSnippet(id);
+    setCustoms(loadCustomSnippets());
+  }
+
+  return (
+    <div className="fc-overlay" onClick={onClose}>
+      <div className="fc-modal snippet-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="fc-modal-header">
+          <span className="fc-modal-title"><Scissors size={14} /> Snippets</span>
+          <button className="fc-close" onClick={onClose}><XIcon size={14} /></button>
+        </div>
+
+        <div className="snippet-save-form">
+          <p className="snippet-form-hint">Salvar conteúdo atual como snippet</p>
+          <input
+            ref={nameRef}
+            className="snippet-input"
+            placeholder="Nome do snippet"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          />
+          <input
+            className="snippet-input"
+            placeholder="Gatilho no menu / (ex: reuniao)"
+            value={trigger}
+            onChange={(e) => setTrigger(e.target.value.replace(/\s/g, ""))}
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          />
+          <button
+            className="fc-create-btn"
+            onClick={handleSave}
+            disabled={!name.trim()}
+          >
+            {saved ? "Salvo ✓" : <><Scissors size={13} /> Salvar snippet</>}
+          </button>
+        </div>
+
+        <div className="snippet-list-section">
+          <div className="fc-list-label">Meus snippets ({customs.length})</div>
+          {customs.length === 0 ? (
+            <p className="fc-empty-hint">Nenhum snippet salvo ainda.</p>
+          ) : (
+            customs.map((s) => (
+              <div key={s.id} className="fc-card-row">
+                <div className="fc-card-row-text">
+                  <span className="fc-card-front">{s.name}</span>
+                  <span className="fc-card-back">/{s.trigger}</span>
+                </div>
+                <button className="fc-delete-btn" onClick={() => handleDelete(s.id)} title="Excluir snippet">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
