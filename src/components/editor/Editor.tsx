@@ -16,9 +16,118 @@ import { tagColor, normalizeTag } from "../../lib/tags";
 import { useTTS, countWords, type TTSState } from "../../lib/tts";
 import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle } from "lucide-react";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight } from "lucide-react";
 
-// Corrige o desaparecimento do toolbar ao mover o mouse de imagem/vídeo para ele.
+// ── Presentation helpers ──────────────────────────────────────────────────────
+
+type InlineItem = {
+  type: string;
+  text?: string;
+  styles?: Record<string, boolean>;
+  props?: Record<string, string>;
+  content?: InlineItem[];
+};
+
+type BNBlock = {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  content: InlineItem[];
+  children: BNBlock[];
+};
+
+type Slide = { title: string; content: BNBlock[] };
+
+function extractText(items: InlineItem[]): string {
+  return items.map((c) => (c.type === "text" ? (c.text ?? "") : "")).join("");
+}
+
+function buildSlides(blocks: BNBlock[], pageTitle: string): Slide[] {
+  const slides: Slide[] = [{ title: pageTitle, content: [] }];
+  for (const block of blocks) {
+    if (block.type === "heading" && (block.props.level as number) === 1) {
+      slides.push({ title: extractText(block.content), content: [] });
+    } else {
+      slides[slides.length - 1].content.push(block);
+    }
+  }
+  return slides;
+}
+
+function renderInline(items: InlineItem[]): React.ReactNode {
+  return items.map((item, i) => {
+    if (item.type === "text") {
+      const s = item.styles ?? {};
+      let node: React.ReactNode = item.text ?? "";
+      if (s.code) node = <code key={`c${i}`}>{node}</code>;
+      if (s.bold) node = <strong key={`b${i}`}>{node}</strong>;
+      if (s.italic) node = <em key={`e${i}`}>{node}</em>;
+      if (s.strikethrough) node = <s key={`s${i}`}>{node}</s>;
+      if (s.underline) node = <u key={`u${i}`}>{node}</u>;
+      return <span key={i}>{node}</span>;
+    }
+    if (item.type === "link") {
+      return <span key={i} className="slide-link">{renderInline(item.content ?? [])}</span>;
+    }
+    return null;
+  });
+}
+
+function renderSlideBlock(block: BNBlock, idx: number): React.ReactNode {
+  const inline = renderInline(block.content);
+  switch (block.type) {
+    case "paragraph":
+      return <p key={idx} className="slide-p">{inline}</p>;
+    case "heading": {
+      const lvl = (block.props.level as number) ?? 2;
+      const Tag = `h${Math.min(lvl + 1, 4)}` as "h2" | "h3" | "h4";
+      return <Tag key={idx} className={`slide-h${lvl + 1}`}>{inline}</Tag>;
+    }
+    case "bulletListItem":
+    case "checkListItem":
+      return <li key={idx} className="slide-bullet">{inline}</li>;
+    case "numberedListItem":
+      return <li key={idx} className="slide-numbered">{inline}</li>;
+    case "codeBlock":
+      return <pre key={idx} className="slide-code"><code>{extractText(block.content)}</code></pre>;
+    case "image":
+      return <img key={idx} className="slide-img" src={block.props.url as string} alt={(block.props.caption as string) || ""} />;
+    default:
+      return null;
+  }
+}
+
+function renderSlideContent(blocks: BNBlock[]): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  let bullets: BNBlock[] = [];
+  let numbered: BNBlock[] = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    nodes.push(<ul key={`ul${nodes.length}`} className="slide-list">{bullets.map((b, i) => renderSlideBlock(b, i))}</ul>);
+    bullets = [];
+  };
+  const flushNumbered = () => {
+    if (!numbered.length) return;
+    nodes.push(<ol key={`ol${nodes.length}`} className="slide-list">{numbered.map((b, i) => renderSlideBlock(b, i))}</ol>);
+    numbered = [];
+  };
+
+  for (const block of blocks) {
+    if (block.type === "bulletListItem" || block.type === "checkListItem") {
+      flushNumbered(); bullets.push(block);
+    } else if (block.type === "numberedListItem") {
+      flushBullets(); numbered.push(block);
+    } else {
+      flushBullets(); flushNumbered();
+      nodes.push(renderSlideBlock(block, nodes.length));
+    }
+  }
+  flushBullets(); flushNumbered();
+  return nodes;
+}
+
+// ── Corrige o desaparecimento do toolbar ao mover o mouse de imagem/vídeo para ele.
 // WebKit (Tauri) inicia um HTML5 drag ao clicar+mover em elementos de mídia,
 // disparando dragstart que borbulha até pmView.dom onde BlockNote esconde o toolbar.
 // A solução substitui o dragHandler por um que ignora drags iniciados em mídia.
@@ -279,6 +388,33 @@ export default function Editor({ pageId }: Props) {
 
   const [showExport, setShowExport] = useState(false);
   const [mdModal, setMdModal] = useState<string | null>(null);
+  const [showPresentation, setShowPresentation] = useState(false);
+
+  // Permite colar imagem do clipboard (Ctrl+V / ⌘V após Print Screen ou cópia)
+  useEffect(() => {
+    async function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) break;
+          const base64 = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          const last = editor.document[editor.document.length - 1];
+          editor.insertBlocks([{ type: "image", props: { url: base64 } }], last, "after");
+          break;
+        }
+      }
+    }
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [editor]);
 
   useEffect(() => {
     if (!showExport) return;
@@ -380,6 +516,13 @@ export default function Editor({ pageId }: Props) {
             )}
             <button
               className="topbar-action-btn"
+              onClick={() => setShowPresentation(true)}
+              title="Modo apresentação"
+            >
+              <Presentation size={15} />
+            </button>
+            <button
+              className="topbar-action-btn"
               onClick={handleOpenHistory}
               title="Histórico de versões"
             >
@@ -465,6 +608,13 @@ export default function Editor({ pageId }: Props) {
           versions={versions}
           onClose={() => setShowHistory(false)}
           onRestore={handleRestoreVersion}
+        />
+      )}
+
+      {showPresentation && (
+        <PresentationMode
+          slides={buildSlides(editor.document as BNBlock[], page?.title ?? "Sem título")}
+          onClose={() => setShowPresentation(false)}
         />
       )}
     </>
@@ -730,6 +880,69 @@ function TagEditor({ pageId, wordCount }: { pageId: string; wordCount: number })
           {wordCount} {wordCount === 1 ? "palavra" : "palavras"} · {readingTime} min
         </span>
       )}
+    </div>
+  );
+}
+
+// ── Presentation Mode ─────────────────────────────────────────────────────────
+
+function PresentationMode({ slides, onClose }: { slides: Slide[]; onClose: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const slide = slides[Math.min(idx, slides.length - 1)];
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " ")
+        setIdx((i) => Math.min(slides.length - 1, i + 1));
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+        setIdx((i) => Math.max(0, i - 1));
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [slides.length, onClose]);
+
+  return (
+    <div className="pres-overlay">
+      <button className="pres-close-btn" onClick={onClose} title="Fechar (Esc)">
+        <XIcon size={18} />
+      </button>
+
+      <div className="pres-slide">
+        <h1 className="pres-slide-title">{slide.title}</h1>
+        <div className="pres-slide-body">
+          {renderSlideContent(slide.content)}
+        </div>
+      </div>
+
+      <div className="pres-controls">
+        <button
+          className="pres-nav-btn"
+          onClick={() => setIdx((i) => Math.max(0, i - 1))}
+          disabled={idx === 0}
+        >
+          <ChevronLeft size={22} />
+        </button>
+        <span className="pres-counter">{idx + 1} / {slides.length}</span>
+        <button
+          className="pres-nav-btn"
+          onClick={() => setIdx((i) => Math.min(slides.length - 1, i + 1))}
+          disabled={idx === slides.length - 1}
+        >
+          <ChevronRight size={22} />
+        </button>
+      </div>
+
+      <div className="pres-dots">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            className={`pres-dot${i === idx ? " active" : ""}`}
+            onClick={() => setIdx(i)}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }

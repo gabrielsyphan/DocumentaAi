@@ -257,21 +257,25 @@ cd mcp-server && npm install && npm run build
 - [ ] Renderizado com D3.js ou similar
 - [ ] Nós = páginas, arestas = referências entre elas
 
-### Fase 7 — Conteúdo rico
+### Fase 7 — Conteúdo rico ✅ concluída
 
-#### Imagens inline
-- [ ] Arrastar/colar imagem diretamente no editor BlockNote
-- [ ] Imagem salva como base64 na coluna `content` (sem dependência de storage externo)
-- [ ] Redimensionamento pelo handle da imagem
+#### Imagens inline ✅
+- [x] Arrastar/colar imagem do sistema de arquivos (Tauri file drop)
+- [x] Colar imagem do clipboard (⌘V / Ctrl+V após Print Screen ou cópia)
+- [x] Bloco `/image` via menu de slash commands do BlockNote
+- [x] Imagem salva como base64 na coluna `content` — sem dependência de storage externo
 
-#### Tabelas
-- [ ] Habilitar o bloco de tabela nativo do BlockNote (já disponível no pacote)
-- [ ] Inserção via `/tabela` no menu de slash commands
+#### Tabelas ✅
+- [x] Bloco de tabela nativo do BlockNote disponível via `/table` no menu de slash commands
+- [x] Incluído em `defaultBlockSpecs` — zero código extra necessário
 
-#### Modo apresentação
-- [ ] Comando "Apresentar" transforma a página em slides a partir dos headings (H1 = slide novo)
-- [ ] Navegação com setas, modo tela cheia, botão Esc para sair
-- [ ] Funciona offline, sem dependências externas
+#### Modo apresentação ✅
+- [x] Botão `Presentation` no topbar
+- [x] H1 = novo slide; conteúdo entre headings vai para o slide atual
+- [x] Navegação com ←/→/espaço/setas; Esc fecha
+- [x] Dots de progresso clicáveis; botões Anterior / Próximo
+- [x] Renderiza paragraphs, headings, listas, código, imagens
+- [x] Tela cheia com tema escuro, tipografia grande, funciona offline
 
 ### Fase 8 — Organização avançada
 
