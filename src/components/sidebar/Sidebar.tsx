@@ -2,7 +2,7 @@ import {
   Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
-  FileUp, Palette, BookOpen, Network,
+  FileUp, Palette, BookOpen, Network, Check,
 } from "lucide-react";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { usePagesStore } from "../../store/pages.store";
@@ -126,6 +126,8 @@ function DailyCalendar({ dailyPages }: { dailyPages: Page[] }) {
 function TrashSection() {
   const { trash, loadTrash, restorePage, permanentDeletePage, emptyTrash } = usePagesStore();
   const [open, setOpen] = useState(false);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) loadTrash();
@@ -151,9 +153,21 @@ function TrashSection() {
             <p className="sidebar-empty">Lixeira vazia</p>
           ) : (
             <>
-              <button className="trash-empty-btn" onClick={() => { if (confirm("Esvaziar lixeira? Ação irreversível.")) emptyTrash(); }}>
-                <Eraser size={11} /> Esvaziar lixeira
-              </button>
+              {confirmEmpty ? (
+                <div className="trash-confirm-row">
+                  <span className="trash-confirm-text">Excluir tudo?</span>
+                  <button className="trash-action-btn danger" onClick={() => { emptyTrash(); setConfirmEmpty(false); }}>
+                    Sim
+                  </button>
+                  <button className="trash-action-btn" onClick={() => setConfirmEmpty(false)}>
+                    Não
+                  </button>
+                </div>
+              ) : (
+                <button className="trash-empty-btn" onClick={() => setConfirmEmpty(true)}>
+                  <Eraser size={11} /> Esvaziar lixeira
+                </button>
+              )}
               {trash.map((page) => (
                 <div key={page.id} className="trash-item">
                   <span className="trash-item-icon">
@@ -164,9 +178,20 @@ function TrashSection() {
                   <button className="trash-action-btn" onClick={() => restorePage(page.id)} title="Restaurar">
                     <RotateCcw size={12} />
                   </button>
-                  <button className="trash-action-btn danger" onClick={() => { if (confirm("Excluir permanentemente?")) permanentDeletePage(page.id); }} title="Excluir para sempre">
-                    <XIcon size={12} />
-                  </button>
+                  {confirmDeleteId === page.id ? (
+                    <>
+                      <button className="trash-action-btn danger" onClick={() => { permanentDeletePage(page.id); setConfirmDeleteId(null); }} title="Confirmar exclusão">
+                        <Check size={11} />
+                      </button>
+                      <button className="trash-action-btn" onClick={() => setConfirmDeleteId(null)} title="Cancelar">
+                        <XIcon size={11} />
+                      </button>
+                    </>
+                  ) : (
+                    <button className="trash-action-btn danger" onClick={() => setConfirmDeleteId(page.id)} title="Excluir para sempre">
+                      <XIcon size={12} />
+                    </button>
+                  )}
                 </div>
               ))}
             </>
@@ -185,7 +210,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
-  const [showDailySection, setShowDailySection] = useState(false);
+  const [showDailySection, setShowDailySection] = useState(true);
   const [showReview, setShowReview] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const dueCount = useDueCount();

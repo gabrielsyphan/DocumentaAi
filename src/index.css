@@ -2337,6 +2337,20 @@ html, body, #root {
 }
 .trash-empty-btn:hover { background: var(--sidebar-hover); opacity: 1; }
 
+.trash-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+}
+
+.trash-confirm-text {
+  font-size: 11px;
+  color: var(--sidebar-text);
+  flex: 1;
+}
+
 .trash-item {
   display: flex;
   align-items: center;
