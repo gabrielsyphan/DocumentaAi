@@ -13,19 +13,39 @@ import { join } from "path";
 // ── Database path ──────────────────────────────────────────────────────────────
 
 function getDbPath(): string {
+  // Explicit override always wins
+  if (process.env.DOCUMENTAAI_DB_PATH) {
+    if (existsSync(process.env.DOCUMENTAAI_DB_PATH)) return process.env.DOCUMENTAAI_DB_PATH;
+    throw new Error(`DOCUMENTAAI_DB_PATH is set to '${process.env.DOCUMENTAAI_DB_PATH}' but the file was not found.`);
+  }
+
+  const home = homedir();
   const candidates = [
-    join(homedir(), "Library", "Application Support", "com.documentaai.app", "documentaai.db"),
-    join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "com.documentaai.app", "documentaai.db"),
-    join(process.env.APPDATA ?? "", "com.documentaai.app", "documentaai.db"),
+    // macOS
+    join(home, "Library", "Application Support", "com.documentaai.app", "documentaai.db"),
+    // Linux — XDG data dir (Tauri default)
+    join(process.env.XDG_DATA_HOME ?? join(home, ".local", "share"), "com.documentaai.app", "documentaai.db"),
+    // Linux — XDG config dir (some distros / Tauri versions)
+    join(process.env.XDG_CONFIG_HOME ?? join(home, ".config"), "com.documentaai.app", "documentaai.db"),
+    // Windows — Roaming AppData
+    join(process.env.APPDATA ?? join(home, "AppData", "Roaming"), "com.documentaai.app", "documentaai.db"),
+    // Windows — Local AppData (less common but possible)
+    join(process.env.LOCALAPPDATA ?? join(home, "AppData", "Local"), "com.documentaai.app", "documentaai.db"),
   ];
+
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
-  if (process.env.DOCUMENTAAI_DB_PATH && existsSync(process.env.DOCUMENTAAI_DB_PATH)) {
-    return process.env.DOCUMENTAAI_DB_PATH;
-  }
+
   throw new Error(
-    `DocumentaAI database not found. Open the app at least once, or set DOCUMENTAAI_DB_PATH.\nSearched:\n${candidates.join("\n")}`
+    `DocumentaAI database not found.\n` +
+    `Make sure the app has been opened at least once.\n\n` +
+    `To locate the database manually:\n` +
+    `  Linux/macOS: find ~ -name "documentaai.db" 2>/dev/null\n` +
+    `  Windows (PowerShell): Get-ChildItem -Recurse -Filter documentaai.db $env:APPDATA\n\n` +
+    `Then set DOCUMENTAAI_DB_PATH in your MCP client config:\n` +
+    `  { "env": { "DOCUMENTAAI_DB_PATH": "/absolute/path/to/documentaai.db" } }\n\n` +
+    `Paths searched:\n${candidates.join("\n")}`
   );
 }
 
