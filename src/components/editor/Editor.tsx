@@ -320,7 +320,17 @@ export default function Editor({ pageId }: Props) {
   const initialContent = (() => {
     if (!page?.content) return undefined;
     try {
-      return JSON.parse(page.content);
+      const blocks = JSON.parse(page.content);
+      // Migração silenciosa: corrige blocos de imagem salvos com schema antigo
+      // (BlockNote ≤0.29 usava `width`, v0.30+ usa `previewWidth`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (Array.isArray(blocks) ? blocks : []).map((b: any) => {
+        if (b?.type === "image" && b.props && "width" in b.props && !("previewWidth" in b.props)) {
+          const { width, ...rest } = b.props;
+          return { ...b, props: { name: "", showPreview: true, previewWidth: width ?? 512, ...rest } };
+        }
+        return b;
+      });
     } catch {
       return undefined;
     }
