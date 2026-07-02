@@ -1,5 +1,5 @@
 import {
-  Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
+  Plus, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
   FileUp, Palette, BookOpen, Network, Check,
@@ -206,7 +206,7 @@ function TrashSection() {
 
 export default function Sidebar({ onSearch, onTemplates }: Props) {
   const { pages, tree, createPage, createDailyNote, selectPage, selectedPageId, load, loading } = usePagesStore();
-  const { theme, toggleTheme, setTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
+  const { theme, setTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
@@ -547,9 +547,6 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
             </div>
           )}
         </div>
-        <button className="theme-toggle" onClick={toggleTheme} title="Alternar claro/escuro">
-          {THEMES.find((t) => t.value === theme)?.dark ?? true ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
         <button
           className={`theme-toggle fc-sidebar-btn${dueCount > 0 ? " active-footer" : ""}`}
           onClick={() => setShowReview(true)}

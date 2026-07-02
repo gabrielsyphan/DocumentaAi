@@ -62,6 +62,7 @@ const NODE_COLORS: Record<Page["type"], string> = {
   folder:   "#64748b",
 };
 
+
 function nodeRadius(degree: number) { return 7 + Math.min(degree * 1.5, 10); }
 function truncate(s: string, n: number) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
@@ -204,6 +205,45 @@ export default function GraphView({
       .attr("r",       (d) => nodeRadius(d.degree))
       .attr("fill",    (d) => NODE_COLORS[d.type] ?? "#9480f5")
       .attr("opacity", 0.9);
+
+    // Ícone Lucide dentro de cada nó (SVG elements escalados)
+    nodeG.each(function(d) {
+      const r   = nodeRadius(d.degree);
+      const px  = r * 1.0;        // ícone ocupa ~100% do raio
+      const sc  = px / 24;        // Lucide é 24×24
+      const off = -px / 2;
+      const sw  = 1.5 / sc;       // stroke-width em coordenadas locais
+
+      const ig = d3.select(this).append("g")
+        .attr("transform", `translate(${off},${off}) scale(${sc})`)
+        .attr("fill", "none")
+        .attr("stroke", "rgba(255,255,255,0.85)")
+        .attr("stroke-width", sw)
+        .attr("stroke-linecap", "round")
+        .attr("stroke-linejoin", "round")
+        .attr("pointer-events", "none");
+
+      switch (d.type) {
+        case "document":
+          ig.append("path").attr("d", "M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z");
+          ig.append("path").attr("d", "M14 2v6h6");
+          ig.append("path").attr("d", "M16 13H8M16 17H8M10 9H8");
+          break;
+        case "daily":
+          ig.append("rect").attr("x","3").attr("y","4").attr("width","18").attr("height","18").attr("rx","2");
+          ig.append("path").attr("d", "M8 2v4M16 2v4M3 10h18");
+          ig.append("path").attr("d", "M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01");
+          break;
+        case "canvas":
+          ig.append("path").attr("d", "m12 19 7-7 3 3-7 7-3-3z");
+          ig.append("path").attr("d", "m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z");
+          ig.append("circle").attr("cx","11").attr("cy","11").attr("r","2");
+          break;
+        case "folder":
+          ig.append("path").attr("d", "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z");
+          break;
+      }
+    });
 
     nodeG.append("text")
       .text((d) => truncate(d.title, 20))
