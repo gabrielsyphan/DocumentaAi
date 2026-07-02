@@ -249,20 +249,83 @@ cd mcp-server && npm install && npm run build
 #### Flashcards / Repetição espaçada
 - [ ] Marcar trechos de uma página como cartão de estudo
 - [ ] Sistema de revisão com intervalos (algoritmo SM-2 ou similar)
-- [ ] Útil para uso educacional / aprendizado com o app
+- [ ] Sessão de revisão com interface frente/verso e botões Fácil / Difícil / Errei
+- [ ] Contador de cards pendentes visível na sidebar
 
 #### Graph view
 - [ ] Mapa visual das conexões entre páginas (depende de Backlinks implementado)
 - [ ] Renderizado com D3.js ou similar
 - [ ] Nós = páginas, arestas = referências entre elas
 
-### Fase 7 - Integração com Ollama (IA local, sem internet) ou com api externas providas pelo usuário
-- [ ] Resumir página atual
+### Fase 7 — Conteúdo rico
+
+#### Imagens inline
+- [ ] Arrastar/colar imagem diretamente no editor BlockNote
+- [ ] Imagem salva como base64 na coluna `content` (sem dependência de storage externo)
+- [ ] Redimensionamento pelo handle da imagem
+
+#### Tabelas
+- [ ] Habilitar o bloco de tabela nativo do BlockNote (já disponível no pacote)
+- [ ] Inserção via `/tabela` no menu de slash commands
+
+#### Modo apresentação
+- [ ] Comando "Apresentar" transforma a página em slides a partir dos headings (H1 = slide novo)
+- [ ] Navegação com setas, modo tela cheia, botão Esc para sair
+- [ ] Funciona offline, sem dependências externas
+
+### Fase 8 — Organização avançada
+
+#### Lixeira
+- [ ] Páginas deletadas vão para a lixeira em vez de sumir imediatamente
+- [ ] Seção "Lixeira" na sidebar com opção de restaurar ou excluir definitivamente
+- [ ] Auto-limpeza após 30 dias; coluna `deleted_at` no SQLite
+
+#### Calendário de daily notes
+- [ ] Visualização mensal na seção Daily Notes da sidebar
+- [ ] Dias com nota marcados com ponto; clicar abre ou cria a nota do dia
+
+#### Ordenação e filtros na sidebar
+- [ ] Menu para ordenar páginas: título A–Z, criação (mais recente), última edição
+- [ ] Filtro rápido por tipo (documento / canvas / daily)
+
+### Fase 9 — Produtividade
+
+#### Snippets / text expand
+- [ ] Atalhos de texto que expandem para blocos — ex: digitar `/daily` insere template de daily note
+- [ ] Gerenciador de snippets acessível nas configurações
+- [ ] Snippets salvos em `localStorage`
+
+#### Lembretes em páginas
+- [ ] Campo de data opcional em qualquer página
+- [ ] Página com data aparece na daily note do dia correspondente como item de agenda
+- [ ] Notificação nativa via `tauri-plugin-notification` no dia configurado
+
+#### Importar Markdown
+- [ ] Botão "Importar" aceita arquivos `.md` ou pasta inteira
+- [ ] Converte Markdown para BlockNote JSON (headings, listas, code blocks, bold/italic)
+- [ ] Mantém hierarquia de pastas como subpáginas
+
+### Fase 10 — Visual e UX
+
+#### Temas de cor
+- [ ] Paletas além de claro/escuro: Rosé, Solarized, Nord, Dracula, etc.
+- [ ] Seletor de tema nas configurações; cor salva em `localStorage`
+- [ ] Variáveis CSS para facilitar adição de novos temas
+
+#### Diff visual de versões
+- [ ] No modal de histórico, botão "Comparar" mostra diff linha a linha entre duas versões
+- [ ] Texto adicionado em verde, removido em vermelho (biblioteca `diff` leve)
+- [ ] Opção de restaurar diretamente a partir da tela de diff
+
+### Fase 11 — Integração com IA local
+
+#### Ollama / APIs externas
+- [ ] Resumir página atual com um clique
 - [ ] Continuar/expandir texto selecionado
 - [ ] Responder perguntas sobre o conteúdo da página
-- [ ] Comunica com Ollama via HTTP local (`http://localhost:11434`)
+- [ ] Suporte a Ollama (`http://localhost:11434`) e APIs externas com chave configurável pelo usuário
 
-### Fase 8 — Sync (futuro)
+### Fase 12 — Sync (futuro)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)
 - [ ] Auth (Clerk ou similar)
 - [ ] Sync em tempo real
