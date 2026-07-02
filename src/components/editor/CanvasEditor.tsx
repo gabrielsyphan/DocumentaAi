@@ -3,6 +3,7 @@ import "@excalidraw/excalidraw/index.css";
 import { Maximize2 } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, THEMES } from "../../store/ui.store";
+import { CANVAS_LIBRARY } from "../../lib/canvas-library";
 
 // Carrega Excalidraw de forma lazy — a lib é grande (~2 MB)
 const Excalidraw = lazy(() =>
@@ -18,8 +19,9 @@ export default function CanvasEditor({ pageId }: Props) {
   const { theme, focusMode, toggleFocusMode } = useUIStore();
   const page = pages.find((p) => p.id === pageId);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
 
-  // Fundo do canvas combina com o editor ao criar uma nova página canvas
   const CANVAS_BG: Record<string, string> = {
     dark: "#1e1e1e", light: "#ffffff", nord: "#2e3440",
     dracula: "#282a36", rose: "#191724", solarized: "#002b36",
@@ -30,15 +32,31 @@ export default function CanvasEditor({ pageId }: Props) {
   };
 
   const initialData = (() => {
-    if (!page?.content) return { elements: [], appState: DEFAULT_APP_STATE };
+    if (!page?.content) return { elements: [], appState: DEFAULT_APP_STATE, libraryItems: CANVAS_LIBRARY };
     try {
       const parsed = JSON.parse(page.content);
-      // garante que novos campos do appState são mergeados com os salvos
-      return { ...parsed, appState: { ...DEFAULT_APP_STATE, ...parsed.appState } };
+      return {
+        ...parsed,
+        appState: { ...DEFAULT_APP_STATE, ...parsed.appState },
+        libraryItems: CANVAS_LIBRARY,
+      };
     } catch {
-      return { elements: [], appState: DEFAULT_APP_STATE };
+      return { elements: [], appState: DEFAULT_APP_STATE, libraryItems: CANVAS_LIBRARY };
     }
   })();
+
+  // Zoom to fit ao abrir uma página com conteúdo
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const api = apiRef.current;
+      if (!api) return;
+      const els = api.getSceneElements();
+      if (els.length > 0) {
+        api.scrollToContent(els, { fitToViewport: true, animate: false });
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [pageId]);
 
   useEffect(() => {
     return () => clearTimeout(saveTimer.current);
@@ -64,6 +82,8 @@ export default function CanvasEditor({ pageId }: Props) {
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     updatePage(pageId, { title: e.target.value });
   }
+
+  const isDark = THEMES.find((t) => t.value === theme)?.dark !== false;
 
   return (
     <div className="canvas-container">
@@ -92,9 +112,13 @@ export default function CanvasEditor({ pageId }: Props) {
           <div style={{ width: "100%", height: "100%" }}>
             <Excalidraw
               key={pageId}
-              initialData={{ ...initialData, scrollToContent: true }}
+              initialData={initialData}
               onChange={handleChange}
-              theme={THEMES.find((t) => t.value === theme)?.dark !== false ? "dark" : "light"}
+              theme={isDark ? "dark" : "light"}
+              langCode="pt-BR"
+              excalidrawAPI={(api) => {
+                apiRef.current = api;
+              }}
             />
           </div>
         </Suspense>
