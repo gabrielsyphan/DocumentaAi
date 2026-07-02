@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-// NOTE: webkitSpeechRecognition crashes WKWebView on macOS — transcription goes
-// through SFSpeechRecognizer via Rust commands (start/stop_transcription).
 import Database from "@tauri-apps/plugin-sql";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { Calendar, Paperclip, X, Mic, Square } from "lucide-react";
+import { Calendar, Paperclip, X } from "lucide-react";
 import type React from "react";
 
 type Status = "idle" | "saving" | "saved" | "error";
@@ -15,28 +12,12 @@ interface ImageAttachment {
   dataUrl: string;
 }
 
-interface TranscriptionChunk {
-  text: string;
-  isFinal: boolean;
-}
-
 const WIN = getCurrentWindow();
 const IS_MAC = /Mac/.test(navigator.platform);
 
 function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function nowTime() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function formatElapsed(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function makeParagraphBlock(text: string) {
@@ -65,46 +46,16 @@ export default function QuickCaptureApp() {
   const [images, setImages]         = useState<ImageAttachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Transcription state
-  const [recording, setRecording]           = useState(false);
-  const [finalChunks, setFinalChunks]       = useState<string[]>([]);
-  const [currentChunk, setCurrentChunk]     = useState("");
-  const [elapsed, setElapsed]               = useState(0);
-  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const textareaRef  = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const textareaRef   = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef  = useRef<HTMLInputElement>(null);
-  const unlistenRef   = useRef<UnlistenFn | null>(null);
-  const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordingRef  = useRef(false); // mirror for use inside closures
-
-  // Keep ref in sync
-  useEffect(() => { recordingRef.current = recording; }, [recording]);
-
-  // Full transcript text (shown while recording)
-  const liveTranscript = [...finalChunks, currentChunk].filter(Boolean).join("\n");
-
-  // ── Stop recording (internal) ──────────────────────────────────────────────
-  const doStop = useCallback(async () => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    unlistenRef.current?.();
-    unlistenRef.current = null;
-    try { await invoke("stop_transcription"); } catch { /* ignore if already stopped */ }
-    setRecording(false);
-    recordingRef.current = false;
-  }, []);
-
-  // Reset when window regains focus (shortcut re-opened it), but not mid-recording
+  // Reset quando a janela ganha foco (atalho global reabriu)
   useEffect(() => {
     const unlisten = WIN.onFocusChanged(({ payload: focused }) => {
-      if (focused && !recordingRef.current) {
+      if (focused) {
         setContent("");
         setStatus("idle");
         setImages([]);
-        setFinalChunks([]);
-        setCurrentChunk("");
-        setElapsed(0);
-        setTranscriptError(null);
         setTimeout(() => textareaRef.current?.focus(), 50);
       }
     });
@@ -120,16 +71,11 @@ export default function QuickCaptureApp() {
   }, []);
 
   const handleClose = useCallback(async () => {
-    await doStop();
     setContent("");
     setStatus("idle");
     setImages([]);
-    setFinalChunks([]);
-    setCurrentChunk("");
-    setElapsed(0);
-    setTranscriptError(null);
     await invoke("close_quick_capture");
-  }, [doStop]);
+  }, []);
 
   const handleSave = useCallback(async () => {
     const text = content.trim();
@@ -148,14 +94,10 @@ export default function QuickCaptureApp() {
       const newBlocks: object[] = [];
 
       if (text) {
-        // Split by blank lines → multiple paragraph blocks
         const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
         for (const para of paragraphs) {
-          // Within each paragraph, single newlines become separate blocks too
           const lines = para.split(/\n/).map(l => l.trim()).filter(Boolean);
-          for (const line of lines) {
-            newBlocks.push(makeParagraphBlock(line));
-          }
+          for (const line of lines) newBlocks.push(makeParagraphBlock(line));
         }
       }
       images.forEach(img => newBlocks.push(makeImageBlock(img.dataUrl)));
@@ -188,59 +130,6 @@ export default function QuickCaptureApp() {
     }
   }, [content, images, handleClose]);
 
-  // ── Start transcription ────────────────────────────────────────────────────
-  const startTranscription = useCallback(async () => {
-    setTranscriptError(null);
-    setFinalChunks([]);
-    setCurrentChunk("");
-    setElapsed(0);
-
-    try {
-      await invoke("request_speech_permission");
-    } catch (err) {
-      setTranscriptError(String(err));
-      return;
-    }
-
-    const unlisten = await listen<TranscriptionChunk>("transcription-chunk", (e) => {
-      const { text, isFinal } = e.payload;
-      if (isFinal) {
-        setFinalChunks(prev => [...prev, text]);
-        setCurrentChunk("");
-      } else {
-        setCurrentChunk(text);
-      }
-    });
-    unlistenRef.current = unlisten;
-
-    try {
-      await invoke("start_transcription");
-    } catch (err) {
-      unlisten();
-      unlistenRef.current = null;
-      setTranscriptError(String(err));
-      return;
-    }
-
-    setRecording(true);
-    recordingRef.current = true;
-    timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
-  }, []);
-
-  // ── Stop transcription & move text to textarea for review ──────────────────
-  const stopTranscription = useCallback(async () => {
-    const capturedTranscript = liveTranscript.trim();
-    await doStop();
-
-    if (capturedTranscript) {
-      const header = `[Transcrição — ${nowTime()}]`;
-      const formatted = `${header}\n${capturedTranscript}`;
-      setContent(prev => prev ? `${prev}\n\n${formatted}` : formatted);
-    }
-    setTimeout(() => textareaRef.current?.focus(), 80);
-  }, [doStop, liveTranscript]);
-
-  // Intercept image paste inside the textarea
   const onTextareaPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter(i => i.type.startsWith("image/"));
     if (imageItems.length > 0) {
@@ -267,17 +156,14 @@ export default function QuickCaptureApp() {
       .forEach(addImageFile);
   }, [addImageFile]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        if (recording) { stopTranscription(); } else { handleClose(); }
-      }
-      if (!recording && (e.metaKey || e.ctrlKey) && e.key === "Enter") handleSave();
+      if (e.key === "Escape") handleClose();
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleSave();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleClose, handleSave, recording, stopTranscription]);
+  }, [handleClose, handleSave]);
 
   const btnLabel =
     status === "saving" ? "Salvando…"
@@ -292,63 +178,33 @@ export default function QuickCaptureApp() {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <style>{`@keyframes recpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }`}</style>
-
       {/* ── Header ── */}
       <div
         style={styles.header}
         onMouseDown={(e) => { if (e.button === 0) WIN.startDragging(); }}
       >
         <span style={styles.headerLabel}>Captura Rápida</span>
-        {recording ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "#ff453a", fontSize: 10, animation: "recpulse 1.2s ease-in-out infinite" }}>●</span>
-            <span style={{ fontSize: 11, color: "#ff453a", fontFamily: "ui-monospace, monospace" }}>
-              {formatElapsed(elapsed)}
-            </span>
-          </div>
-        ) : (
-          <span style={styles.headerHint}>⌘↵ salvar · Esc cancelar</span>
-        )}
+        <span style={styles.headerHint}>⌘↵ salvar · Esc cancelar</span>
       </div>
 
-      {/* ── Main area ── */}
-      {recording ? (
-        <div style={styles.transcriptArea}>
-          {transcriptError ? (
-            <p style={styles.transcriptError}>{transcriptError}</p>
-          ) : liveTranscript ? (
-            <p style={styles.transcriptText}>{liveTranscript}</p>
-          ) : (
-            <p style={styles.transcriptPlaceholder}>Aguardando fala…</p>
-          )}
-        </div>
-      ) : (
-        <>
-          {transcriptError && (
-            <div style={{ padding: "6px 16px 0", color: "#ff6b6b", fontSize: 12 }}>
-              {transcriptError}
-            </div>
-          )}
-          <textarea
-            ref={textareaRef}
-            autoFocus
-            style={styles.textarea}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onPaste={onTextareaPaste}
-            placeholder={
-              images.length > 0
-                ? "Adicione um texto (opcional)…"
-                : "Anote algo rapidamente… ou cole uma imagem com ⌘V"
-            }
-            spellCheck
-          />
-        </>
-      )}
+      {/* ── Textarea ── */}
+      <textarea
+        ref={textareaRef}
+        autoFocus
+        style={styles.textarea}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        onPaste={onTextareaPaste}
+        placeholder={
+          images.length > 0
+            ? "Adicione um texto (opcional)…"
+            : "Anote algo rapidamente… ou cole uma imagem com ⌘V"
+        }
+        spellCheck
+      />
 
-      {/* ── Image thumbnails (only in note mode) ── */}
-      {!recording && images.length > 0 && (
+      {/* ── Thumbnails de imagens ── */}
+      {images.length > 0 && (
         <div style={styles.imageStrip}>
           {images.map(img => (
             <div key={img.id} style={styles.thumbWrap}>
@@ -370,58 +226,33 @@ export default function QuickCaptureApp() {
         <span style={styles.dest}>
           <Calendar size={12} style={{ marginRight: 5 }} />Daily Note de hoje
         </span>
-
         <div style={styles.actions}>
-          {recording ? (
-            // Recording mode: stop button + cancel
-            <>
-              <button
-                style={{ ...styles.iconBtn, color: "#ff453a", borderColor: "rgba(255,69,58,0.5)" }}
-                onClick={stopTranscription}
-                title="Parar gravação (Esc)"
-              >
-                <Square size={12} fill="currentColor" />
-              </button>
-              <button style={styles.cancelBtn} onClick={handleClose}>Cancelar</button>
-            </>
-          ) : (
-            // Normal mode: mic + paperclip + cancel + save
-            <>
-              <button
-                style={styles.iconBtn}
-                onClick={startTranscription}
-                title="Transcrever áudio do microfone"
-              >
-                <Mic size={13} />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  Array.from(e.target.files ?? []).forEach(addImageFile);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                style={styles.iconBtn}
-                onClick={() => fileInputRef.current?.click()}
-                title="Anexar imagem"
-              >
-                <Paperclip size={13} />
-              </button>
-              <button style={styles.cancelBtn} onClick={handleClose}>Cancelar</button>
-              <button
-                style={{ ...styles.saveBtn, opacity: status === "saving" ? 0.7 : 1 }}
-                onClick={handleSave}
-                disabled={status === "saving" || status === "saved"}
-              >
-                {btnLabel}
-              </button>
-            </>
-          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => {
+              Array.from(e.target.files ?? []).forEach(addImageFile);
+              e.target.value = "";
+            }}
+          />
+          <button
+            style={styles.iconBtn}
+            onClick={() => fileInputRef.current?.click()}
+            title="Anexar imagem"
+          >
+            <Paperclip size={13} />
+          </button>
+          <button style={styles.cancelBtn} onClick={handleClose}>Cancelar</button>
+          <button
+            style={{ ...styles.saveBtn, opacity: status === "saving" ? 0.7 : 1 }}
+            onClick={handleSave}
+            disabled={status === "saving" || status === "saved"}
+          >
+            {btnLabel}
+          </button>
         </div>
       </div>
     </div>
@@ -491,36 +322,6 @@ const styles = {
     lineHeight: 1.65,
     resize: "none" as const,
     fontFamily: "inherit",
-  },
-
-  // Live transcript view (shown while recording)
-  transcriptArea: {
-    flex: 1,
-    overflowY: "auto" as const,
-    padding: "14px 16px",
-  },
-
-  transcriptText: {
-    margin: 0,
-    fontSize: 15,
-    lineHeight: 1.65,
-    color: "var(--editor-text)",
-    whiteSpace: "pre-wrap" as const,
-  },
-
-  transcriptPlaceholder: {
-    margin: 0,
-    fontSize: 14,
-    color: "var(--sidebar-text)",
-    fontStyle: "italic" as const,
-    opacity: 0.5,
-  },
-
-  transcriptError: {
-    margin: 0,
-    fontSize: 13,
-    color: "#ff6b6b",
-    lineHeight: 1.5,
   },
 
   imageStrip: {
