@@ -32,16 +32,12 @@ export default function CanvasEditor({ pageId }: Props) {
   };
 
   const initialData = (() => {
-    if (!page?.content) return { elements: [], appState: DEFAULT_APP_STATE, libraryItems: CANVAS_LIBRARY };
+    if (!page?.content) return { elements: [], appState: DEFAULT_APP_STATE };
     try {
       const parsed = JSON.parse(page.content);
-      return {
-        ...parsed,
-        appState: { ...DEFAULT_APP_STATE, ...parsed.appState },
-        libraryItems: CANVAS_LIBRARY,
-      };
+      return { ...parsed, appState: { ...DEFAULT_APP_STATE, ...parsed.appState } };
     } catch {
-      return { elements: [], appState: DEFAULT_APP_STATE, libraryItems: CANVAS_LIBRARY };
+      return { elements: [], appState: DEFAULT_APP_STATE };
     }
   })();
 
@@ -118,6 +114,9 @@ export default function CanvasEditor({ pageId }: Props) {
               langCode="pt-BR"
               excalidrawAPI={(api) => {
                 apiRef.current = api;
+                // merge:false substitui sempre — evita duplicatas ao navegar entre canvas
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (api as any).updateLibrary({ libraryItems: CANVAS_LIBRARY, merge: false });
               }}
             />
           </div>
