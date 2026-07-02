@@ -630,7 +630,7 @@ export default function Editor({ pageId }: Props) {
           <DailyAgenda date={page.title} />
         )}
 
-        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false} slashMenu={false}>
+        <BlockNoteView editor={editor} theme={theme === "light" ? "light" : "dark"} formattingToolbar={false} slashMenu={false}>
           <FormattingToolbarController formattingToolbar={StableFormattingToolbar} />
           {/* Slash menu personalizado com snippets */}
           <SuggestionMenuController
@@ -691,6 +691,7 @@ export default function Editor({ pageId }: Props) {
       {showHistory && (
         <VersionHistoryModal
           versions={versions}
+          currentContent={JSON.stringify(editor.document)}
           onClose={() => setShowHistory(false)}
           onRestore={handleRestoreVersion}
         />
@@ -847,15 +848,114 @@ function formatVersionDate(iso: string): string {
   });
 }
 
+// ── Diff helpers ──────────────────────────────────────────────────────────────
+
+type DiffLine = { text: string; kind: "same" | "added" | "removed" };
+
+function computeDiff(oldText: string, newText: string): DiffLine[] {
+  const a = oldText.split("\n");
+  const b = newText.split("\n");
+  const m = a.length, n = b.length;
+  const lcs = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      lcs[i][j] = a[i - 1] === b[j - 1] ? lcs[i - 1][j - 1] + 1 : Math.max(lcs[i - 1][j], lcs[i][j - 1]);
+  const result: DiffLine[] = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      result.unshift({ text: a[i - 1], kind: "same" }); i--; j--;
+    } else if (j > 0 && (i === 0 || lcs[i][j - 1] >= lcs[i - 1][j])) {
+      result.unshift({ text: b[j - 1], kind: "added" }); j--;
+    } else {
+      result.unshift({ text: a[i - 1], kind: "removed" }); i--;
+    }
+  }
+  return result;
+}
+
+function blocksToPlainText(content: string | null): string {
+  if (!content) return "";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function inlineToText(items: any[]): string {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (items ?? []).map((c: any) => c.type === "text" ? (c.text ?? "") : inlineToText(c.content ?? [])).join("");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function blockToLine(b: any): string {
+      const text = inlineToText(b.content ?? []);
+      if (b.type === "heading") return "#".repeat(b.props?.level ?? 1) + " " + text;
+      if (b.type === "bulletListItem") return "• " + text;
+      if (b.type === "numberedListItem") return "  " + text;
+      if (b.type === "checkListItem") return (b.props?.checked ? "[x] " : "[ ] ") + text;
+      if (b.type === "codeBlock") return "```\n" + inlineToText(b.content) + "\n```";
+      return text;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function walk(blocks: any[]): string[] {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return blocks.flatMap((b: any) => [blockToLine(b), ...walk(b.children ?? [])]);
+    }
+    return walk(JSON.parse(content)).join("\n");
+  } catch { return ""; }
+}
+
+// ── Version History Modal ─────────────────────────────────────────────────────
+
 function VersionHistoryModal({
   versions,
+  currentContent,
   onClose,
   onRestore,
 }: {
   versions: PageVersion[];
+  currentContent: string;
   onClose: () => void;
   onRestore: (v: PageVersion) => void;
 }) {
+  const [diffVersion, setDiffVersion] = useState<PageVersion | null>(null);
+
+  if (diffVersion) {
+    const oldText = blocksToPlainText(diffVersion.content);
+    const newText = blocksToPlainText(currentContent);
+    const lines = computeDiff(oldText, newText);
+    return (
+      <div className="vhist-overlay" onClick={() => setDiffVersion(null)}>
+        <div className="vhist-modal vhist-modal-wide" onClick={(e) => e.stopPropagation()}>
+          <div className="vhist-header">
+            <span className="vhist-title-bar">
+              <History size={14} />
+              Diff — {formatVersionDate(diffVersion.saved_at)} → agora
+            </span>
+            <button className="vhist-close" onClick={() => setDiffVersion(null)}>
+              <XIcon size={14} />
+            </button>
+          </div>
+          <div className="vhist-diff">
+            {lines.map((line, i) => (
+              <div key={i} className={`diff-line diff-${line.kind}`}>
+                <span className="diff-marker">
+                  {line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}
+                </span>
+                <span className="diff-text">{line.text || " "}</span>
+              </div>
+            ))}
+          </div>
+          <div className="vhist-diff-footer">
+            <button
+              className="vhist-restore-btn"
+              onClick={() => { onRestore(diffVersion); setDiffVersion(null); }}
+            >
+              <RotateCcw size={12} />
+              Restaurar esta versão
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="vhist-overlay" onClick={onClose}>
       <div className="vhist-modal" onClick={(e) => e.stopPropagation()}>
@@ -878,6 +978,13 @@ function VersionHistoryModal({
                   <span className="vhist-time">{formatVersionDate(v.saved_at)}</span>
                   <span className="vhist-page-title">{v.title || "Sem título"}</span>
                 </div>
+                <button
+                  className="vhist-diff-btn"
+                  onClick={() => setDiffVersion(v)}
+                  title="Ver diferenças"
+                >
+                  Comparar
+                </button>
                 <button
                   className="vhist-restore-btn"
                   onClick={() => onRestore(v)}

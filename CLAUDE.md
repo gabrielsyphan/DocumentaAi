@@ -319,17 +319,20 @@ cd mcp-server && npm install && npm run build
       headings, listas, checkboxes, código, bold/italic/strike/code inline, links
 - [x] Cria uma página por arquivo com o nome do arquivo como título
 
-### Fase 10 — Visual e UX
+### Fase 10 — Visual e UX ✅ concluída
 
-#### Temas de cor
-- [ ] Paletas além de claro/escuro: Rosé, Solarized, Nord, Dracula, etc.
-- [ ] Seletor de tema nas configurações; cor salva em `localStorage`
-- [ ] Variáveis CSS para facilitar adição de novos temas
+#### Temas de cor ✅
+- [x] 6 paletas: Escuro (padrão), Claro, Nord, Dracula, Rosé Pine, Solarized
+- [x] Cada tema define variáveis CSS completas (sidebar, editor, bordas, accent, scrollbar)
+- [x] Seletor de tema via botão Palette no footer da sidebar → dropdown com dots coloridos
+- [x] Tema salvo em `localStorage` e aplicado imediatamente ao trocar
+- [x] Toggle claro/escuro preservado; BlockNote recebe `"dark"|"light"` corretamente
 
-#### Diff visual de versões
-- [ ] No modal de histórico, botão "Comparar" mostra diff linha a linha entre duas versões
-- [ ] Texto adicionado em verde, removido em vermelho (biblioteca `diff` leve)
-- [ ] Opção de restaurar diretamente a partir da tela de diff
+#### Diff visual de versões ✅
+- [x] Botão "Comparar" ao lado de "Restaurar" em cada versão do histórico
+- [x] Diff LCS (sem dependências externas) linha a linha entre versão e conteúdo atual
+- [x] Linhas adicionadas em verde, removidas em vermelho, iguais em cinza
+- [x] Botão "Restaurar esta versão" diretamente na tela de diff
 
 ### Fase 11 — Integração com IA local
 

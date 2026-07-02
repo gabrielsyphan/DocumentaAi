@@ -12,6 +12,8 @@
   --editor-text: #e8e8e6;
   --border: #2d2d2d;
   --title-placeholder: #464543;
+  --bg: #191919;
+  --text: #e8e8e6;
 
   --accent: #9480f5;
   --accent-hover: #a993ff;
@@ -31,12 +33,102 @@
   --editor-text: #37352f;
   --border: #e8e8e7;
   --title-placeholder: #c7c6c3;
+  --bg: #ffffff;
+  --text: #37352f;
 
   --accent: #7b6cd8;
   --accent-hover: #6254c0;
   --accent-faint: rgba(123, 108, 216, 0.1);
 
   --scrollbar: #e8e8e7;
+}
+
+/* Nord — azul-cinza ártico */
+[data-theme="nord"] {
+  --sidebar-bg: #2E3440;
+  --sidebar-text: #7B88A0;
+  --sidebar-text-active: #ECEFF4;
+  --sidebar-hover: #3B4252;
+  --sidebar-active-bg: #3B4252;
+  --sidebar-active-border: transparent;
+  --editor-bg: #242933;
+  --editor-text: #D8DEE9;
+  --border: #434C5E;
+  --title-placeholder: #4C566A;
+  --bg: #242933;
+  --text: #D8DEE9;
+
+  --accent: #81A1C1;
+  --accent-hover: #88C0D0;
+  --accent-faint: rgba(129, 161, 193, 0.12);
+
+  --scrollbar: #434C5E;
+}
+
+/* Dracula — roxo escuro */
+[data-theme="dracula"] {
+  --sidebar-bg: #21222C;
+  --sidebar-text: #6272A4;
+  --sidebar-text-active: #F8F8F2;
+  --sidebar-hover: #2D2E3D;
+  --sidebar-active-bg: #44475A;
+  --sidebar-active-border: transparent;
+  --editor-bg: #282A36;
+  --editor-text: #F8F8F2;
+  --border: #44475A;
+  --title-placeholder: #44475A;
+  --bg: #282A36;
+  --text: #F8F8F2;
+
+  --accent: #BD93F9;
+  --accent-hover: #CFA9FF;
+  --accent-faint: rgba(189, 147, 249, 0.12);
+
+  --scrollbar: #44475A;
+}
+
+/* Rosé Pine — rosa e violeta escuro */
+[data-theme="rose"] {
+  --sidebar-bg: #1F1D2E;
+  --sidebar-text: #6E6A86;
+  --sidebar-text-active: #E0DEF4;
+  --sidebar-hover: #26233A;
+  --sidebar-active-bg: #26233A;
+  --sidebar-active-border: transparent;
+  --editor-bg: #191724;
+  --editor-text: #E0DEF4;
+  --border: #26233A;
+  --title-placeholder: #403D52;
+  --bg: #191724;
+  --text: #E0DEF4;
+
+  --accent: #C4A7E7;
+  --accent-hover: #D4B8F0;
+  --accent-faint: rgba(196, 167, 231, 0.12);
+
+  --scrollbar: #26233A;
+}
+
+/* Solarized — quente e de baixo contraste */
+[data-theme="solarized"] {
+  --sidebar-bg: #073642;
+  --sidebar-text: #586E75;
+  --sidebar-text-active: #FDF6E3;
+  --sidebar-hover: #0D4A5A;
+  --sidebar-active-bg: #0D4A5A;
+  --sidebar-active-border: transparent;
+  --editor-bg: #002B36;
+  --editor-text: #839496;
+  --border: #073642;
+  --title-placeholder: #3D5058;
+  --bg: #002B36;
+  --text: #839496;
+
+  --accent: #268BD2;
+  --accent-hover: #2AA198;
+  --accent-faint: rgba(38, 139, 210, 0.12);
+
+  --scrollbar: #073642;
 }
 
 /* ── Reset ── */
@@ -1243,6 +1335,104 @@ html, body, #root {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.vhist-diff-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.vhist-diff-btn:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
+
+.vhist-modal-wide { max-width: 700px; }
+
+.vhist-diff {
+  overflow-y: auto;
+  max-height: 420px;
+  padding: 8px 0;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.diff-line {
+  display: flex;
+  gap: 8px;
+  padding: 1px 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.diff-same { color: var(--sidebar-text); opacity: 0.6; }
+.diff-added { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+.diff-removed { background: rgba(248, 113, 113, 0.1); color: #f87171; }
+
+.diff-marker {
+  flex-shrink: 0;
+  width: 14px;
+  font-weight: 600;
+}
+
+.diff-text { flex: 1; }
+
+.vhist-diff-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Theme Picker ───────────────────────────────────────────────────────────── */
+
+.active-footer {
+  color: var(--accent) !important;
+}
+
+.theme-picker-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 500;
+  min-width: 150px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+}
+
+.theme-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+.theme-picker-item:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
+.theme-picker-item.active { color: var(--sidebar-text-active); font-weight: 600; }
+
+.theme-picker-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.theme-picker-check { margin-left: auto; font-size: 11px; color: var(--accent); }
 
 /* ── Tags ── */
 /* Barra de tags fora do scroll — irmã do editor-container dentro de .editor-area */

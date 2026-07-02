@@ -2,11 +2,11 @@ import {
   Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
-  FileUp,
+  FileUp, Palette,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePagesStore } from "../../store/pages.store";
-import { useUIStore, type PageSort } from "../../store/ui.store";
+import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
 import type { Page } from "../../types";
 import PageItem from "./PageItem";
@@ -178,11 +178,13 @@ function TrashSection() {
 
 export default function Sidebar({ onSearch, onTemplates }: Props) {
   const { pages, tree, createPage, createDailyNote, selectPage, selectedPageId, load, loading } = usePagesStore();
-  const { theme, toggleTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
+  const { theme, toggleTheme, setTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  const themePickerRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImportMarkdown(e: React.ChangeEvent<HTMLInputElement>) {
@@ -214,6 +216,15 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [showSortMenu]);
+
+  useEffect(() => {
+    if (!showThemePicker) return;
+    const close = (e: MouseEvent) => {
+      if (!themePickerRef.current?.contains(e.target as Node)) setShowThemePicker(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showThemePicker]);
 
   useEffect(() => {
     const handleFocus = () => load();
@@ -439,8 +450,42 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         >
           <RefreshCw size={16} className={loading ? "spin" : ""} />
         </button>
-        <button className="theme-toggle" onClick={toggleTheme} title="Alternar tema">
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        <div style={{ position: "relative" }} ref={themePickerRef}>
+          <button
+            className={`theme-toggle${showThemePicker ? " active-footer" : ""}`}
+            onClick={() => setShowThemePicker((v) => !v)}
+            title="Tema de cor"
+          >
+            <Palette size={16} />
+          </button>
+          {showThemePicker && (
+            <div className="theme-picker-menu">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  className={`theme-picker-item${theme === t.value ? " active" : ""}`}
+                  onClick={() => { setTheme(t.value); setShowThemePicker(false); }}
+                >
+                  <span
+                    className="theme-picker-dot"
+                    style={{
+                      background: t.value === "nord" ? "#81A1C1"
+                        : t.value === "dracula" ? "#BD93F9"
+                        : t.value === "rose" ? "#C4A7E7"
+                        : t.value === "solarized" ? "#268BD2"
+                        : t.value === "light" ? "#7b6cd8"
+                        : "#9480f5",
+                    }}
+                  />
+                  {t.label}
+                  {theme === t.value && <span className="theme-picker-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="theme-toggle" onClick={toggleTheme} title="Alternar claro/escuro">
+          {THEMES.find((t) => t.value === theme)?.dark ?? true ? <Sun size={16} /> : <Moon size={16} />}
         </button>
       </div>
     </aside>
