@@ -34,7 +34,7 @@ function makeImageBlock(url: string) {
   return {
     id: crypto.randomUUID(),
     type: "image",
-    props: { url, caption: "", width: 512, textAlignment: "left", backgroundColor: "default" },
+    props: { url, caption: "", name: "", showPreview: true, previewWidth: 512, textAlignment: "left", backgroundColor: "default" },
     content: [],
     children: [],
   };
