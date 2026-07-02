@@ -224,7 +224,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const dueCount = useDueCount();
   const [appVersion, setAppVersion] = useState("");
   const [backupStatus, setBackupStatus] = useState<"idle" | "busy" | "ok" | "err">("idle");
-  const [confirmRestore, setConfirmRestore] = useState(false);
+  const [restoreFilePath, setRestoreFilePath] = useState<string | null>(null);
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const themePickerRef = useRef<HTMLDivElement>(null);
@@ -247,13 +247,23 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     }
   }
 
-  async function handleRestore() {
-    setConfirmRestore(false);
+  async function handlePickRestoreFile() {
     try {
-      await invoke("restore_from_backup");
-      // if user cancelled the file dialog the command returns without restarting
+      const path = await invoke<string | null>("pick_restore_file");
+      if (path) setRestoreFilePath(path);
     } catch (e) {
-      if (e !== "cancelled") console.error("Restore error:", e);
+      console.error("Pick restore error:", e);
+    }
+  }
+
+  async function handleApplyRestore() {
+    if (!restoreFilePath) return;
+    const path = restoreFilePath;
+    setRestoreFilePath(null);
+    try {
+      await invoke("apply_restore", { backupPath: path });
+    } catch (e) {
+      console.error("Restore error:", e);
     }
   }
 
@@ -610,27 +620,30 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         >
           <HardDriveDownload size={16} />
         </button>
-        {confirmRestore ? (
-          <span className="trash-confirm-row" style={{ gap: 2 }}>
+        {restoreFilePath ? (
+          <span className="trash-confirm-row" style={{ gap: 2, flexShrink: 1, overflow: "hidden" }}>
+            <span style={{ fontSize: 10, color: "var(--sidebar-text)", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 80 }}>
+              {restoreFilePath.split(/[\\/]/).pop()}
+            </span>
             <button
               className="trash-action-btn"
               style={{ opacity: 1, width: "auto", padding: "2px 7px", fontSize: 11 }}
-              onClick={handleRestore}
+              onClick={handleApplyRestore}
             >
-              Sim
+              Restaurar
             </button>
             <button
               className="trash-action-btn"
               style={{ opacity: 1, width: "auto", padding: "2px 7px", fontSize: 11 }}
-              onClick={() => setConfirmRestore(false)}
+              onClick={() => setRestoreFilePath(null)}
             >
-              Não
+              Cancelar
             </button>
           </span>
         ) : (
           <button
             className="theme-toggle"
-            onClick={() => setConfirmRestore(true)}
+            onClick={handlePickRestoreFile}
             title="Importar backup (substitui todos os dados)"
           >
             <HardDriveUpload size={16} />

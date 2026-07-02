@@ -297,27 +297,27 @@ async fn pick_backup_save_path(app: tauri::AppHandle, suggested_name: String) ->
     Ok(path.and_then(|p| p.as_path().map(|p| p.to_string_lossy().into_owned())))
 }
 
-/// Opens a file picker, copies the chosen backup .db over the current DB,
-/// removes stale WAL files, and restarts the app so the restored data loads cleanly.
+/// Opens a file picker and returns the chosen backup path (or None if cancelled).
 #[tauri::command]
-async fn restore_from_backup(app: tauri::AppHandle) -> Result<(), String> {
+async fn pick_restore_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
-
-    let backup_path = app
+    let path = app
         .dialog()
         .file()
         .add_filter("DocumentaAI Backup", &["db"])
         .blocking_pick_file();
+    Ok(path.and_then(|p| p.as_path().map(|p| p.to_string_lossy().into_owned())))
+}
 
-    let src = match backup_path {
-        None => return Err("cancelled".to_string()),
-        Some(p) => p.as_path().map(|p| p.to_path_buf()).ok_or("Caminho inválido")?,
-    };
-
+/// Copies the chosen backup .db over the current DB, removes stale WAL files,
+/// and restarts the app so the restored data loads cleanly.
+#[tauri::command]
+async fn apply_restore(app: tauri::AppHandle, backup_path: String) -> Result<(), String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = data_dir.join("documentaai.db");
 
-    std::fs::copy(&src, &db_path).map_err(|e| format!("Erro ao restaurar: {e}"))?;
+    std::fs::copy(std::path::PathBuf::from(&backup_path), &db_path)
+        .map_err(|e| format!("Erro ao restaurar: {e}"))?;
 
     // Remove WAL/SHM so the restored DB starts without stale journal files
     let _ = std::fs::remove_file(data_dir.join("documentaai.db-wal"));
@@ -395,7 +395,8 @@ pub fn run() {
             start_transcription,
             stop_transcription,
             pick_backup_save_path,
-            restore_from_backup,
+            pick_restore_file,
+            apply_restore,
         ])
         .setup(|app| {
             // When launched at login with --hidden, keep the main window hidden
