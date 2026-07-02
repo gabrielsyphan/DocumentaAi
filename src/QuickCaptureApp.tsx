@@ -91,7 +91,15 @@ export default function QuickCaptureApp() {
         [today]
       );
 
-      const newBlocks: object[] = [];
+      const newBlocks: object[] = [
+        {
+          id: crypto.randomUUID(),
+          type: "captureStamp",
+          props: { capturedAt: new Date().toISOString() },
+          content: [],
+          children: [],
+        },
+      ];
 
       if (text) {
         const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);

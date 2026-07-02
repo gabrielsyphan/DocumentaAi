@@ -16,7 +16,7 @@ function inlineToText(items: InlineItem[] = []): string {
 
 function blockToText(block: Block): string {
   // Ignora código, imagens e mídia — faz sentido para leitura
-  if (["codeBlock", "image", "video", "audio"].includes(block.type)) return "";
+  if (["codeBlock", "image", "video", "audio", "captureStamp"].includes(block.type)) return "";
   const text = inlineToText(block.content ?? []).trim();
   const childText = (block.children ?? []).map(blockToText).filter(Boolean).join(" ");
   return [text, childText].filter(Boolean).join(" ");

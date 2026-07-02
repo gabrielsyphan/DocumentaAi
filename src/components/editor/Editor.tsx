@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor, SuggestionMenuController, getDefaultReactSlashMenuItems } from "@blocknote/react";
+import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor, SuggestionMenuController, getDefaultReactSlashMenuItems, createReactBlockSpec } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { WikiLink } from "./WikiLink";
 import { createHighlighter } from "shiki";
@@ -20,7 +20,7 @@ import { getAllSnippets, saveCustomSnippet, loadCustomSnippets, deleteCustomSnip
 import { CreateFlashcardModal } from "../flashcards/FlashcardPanel";
 import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2 } from "lucide-react";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2, Zap } from "lucide-react";
 
 // ── Shiki singleton para slides (separado do highlighter do editor) ───────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,8 +246,40 @@ const SUPPORTED_LANGUAGES: CodeBlockOptions["supportedLanguages"] = {
 
 const SHIKI_LANGS = Object.keys(SUPPORTED_LANGUAGES).filter((l) => l !== "text");
 
+const CaptureStamp = createReactBlockSpec(
+  {
+    type: "captureStamp" as const,
+    propSchema: { capturedAt: { default: "" } },
+    content: "none",
+  },
+  {
+    render: ({ block, editor }) => {
+      const ts   = block.props.capturedAt;
+      const date = ts ? new Date(ts) : new Date();
+      const time = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const day  = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+      return (
+        <div className="capture-stamp" contentEditable={false}>
+          <span className="capture-stamp-label">
+            <Zap size={11} />
+            Quick Capture · {day} {time}
+          </span>
+          <button
+            className="capture-stamp-remove"
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onClick={() => (editor as any).removeBlocks([block])}
+            title="Remover marcador (o conteúdo permanece)"
+          >
+            <XIcon size={11} />
+          </button>
+        </div>
+      );
+    },
+  }
+);
+
 const editorSchema = BlockNoteSchema.create({
-  blockSpecs: defaultBlockSpecs,
+  blockSpecs: { ...defaultBlockSpecs, captureStamp: CaptureStamp },
   inlineContentSpecs: { ...defaultInlineContentSpecs, wikilink: WikiLink },
   styleSpecs: defaultStyleSpecs,
 });
