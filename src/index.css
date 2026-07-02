@@ -1813,6 +1813,257 @@ html, body, #root {
   user-select: none;
 }
 
+/* ── Daily Calendar ─────────────────────────────────────────────────────────── */
+
+.daily-cal {
+  padding: 4px 8px 8px;
+}
+
+.daily-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.daily-cal-month {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sidebar-text);
+  text-transform: capitalize;
+}
+
+.daily-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: background 0.1s, opacity 0.1s;
+}
+.daily-cal-nav:hover { background: var(--sidebar-hover); opacity: 1; }
+
+.daily-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.daily-cal-weekday {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--sidebar-text);
+  opacity: 0.45;
+  text-align: center;
+  padding: 2px 0 4px;
+  line-height: 1;
+}
+
+.daily-cal-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  font-size: 11px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: background 0.1s, opacity 0.1s;
+  line-height: 1;
+}
+.daily-cal-day:hover { background: var(--sidebar-hover); opacity: 1; }
+.daily-cal-day.today {
+  font-weight: 700;
+  color: var(--text);
+  opacity: 1;
+  background: var(--sidebar-hover);
+  outline: 1.5px solid var(--border);
+  outline-offset: -1px;
+}
+.daily-cal-day.has-note::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--sidebar-text-active);
+}
+.daily-cal-day.selected {
+  background: var(--sidebar-active-bg, rgba(99,102,241,0.15));
+  color: var(--sidebar-text-active);
+  opacity: 1;
+}
+
+/* ── Páginas — Sort ─────────────────────────────────────────────────────────── */
+
+.pages-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sort-menu-wrapper {
+  position: relative;
+}
+
+.sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+.sort-btn:hover, .sort-btn.active {
+  background: var(--sidebar-hover);
+  border-color: var(--border);
+  color: var(--sidebar-text-active);
+}
+
+.sort-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px;
+  z-index: 200;
+  min-width: 110px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+.sort-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.sort-menu-item:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); }
+.sort-menu-item.active { color: var(--sidebar-text-active); font-weight: 600; }
+
+/* ── Lixeira ────────────────────────────────────────────────────────────────── */
+
+.trash-section {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.trash-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sidebar-text);
+  opacity: 0.55;
+  border-radius: 5px;
+  transition: background 0.1s, opacity 0.1s;
+}
+.trash-label:hover { background: var(--sidebar-hover); opacity: 1; }
+.trash-label span { flex: 1; }
+
+.trash-chevron { transition: transform 0.15s; }
+.trash-chevron.open { transform: rotate(180deg); }
+
+.trash-list {
+  padding: 4px 0;
+}
+
+.trash-empty-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: calc(100% - 16px);
+  margin: 0 8px 4px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: background 0.1s, opacity 0.1s;
+}
+.trash-empty-btn:hover { background: var(--sidebar-hover); opacity: 1; }
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--sidebar-text);
+}
+.trash-item:hover { background: var(--sidebar-hover); }
+
+.trash-item-icon { flex-shrink: 0; opacity: 0.6; }
+.trash-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.trash-item-date { font-size: 10px; opacity: 0.4; flex-shrink: 0; }
+
+.trash-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  opacity: 0;
+  transition: background 0.1s, opacity 0.1s;
+  flex-shrink: 0;
+}
+.trash-item:hover .trash-action-btn { opacity: 0.6; }
+.trash-action-btn:hover { background: var(--sidebar-hover); opacity: 1 !important; }
+.trash-action-btn.danger:hover { color: #f87171; }
+
 /* ── Presentation Mode ───────────────────────────────────────────────────────── */
 
 .pres-overlay {

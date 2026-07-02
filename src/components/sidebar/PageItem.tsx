@@ -14,7 +14,7 @@ const DRAG_THRESHOLD = 5;
 export default function PageItem({ page, depth }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [confirming, setConfirming] = useState(false);
-  const { selectedPageId, selectPage, createPage, deletePage, toggleFavorite } = usePagesStore();
+  const { selectedPageId, selectPage, createPage, trashPage, toggleFavorite } = usePagesStore();
   const { draggedId, overId, overPosition, startDrag } = useDragCtx();
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const dragStarted = useRef(false);
@@ -65,7 +65,7 @@ export default function PageItem({ page, depth }: Props) {
 
   function handleConfirm(e: React.MouseEvent) {
     e.stopPropagation();
-    deletePage(page.id);
+    trashPage(page.id);
   }
 
   function handleCancel(e: React.MouseEvent) {

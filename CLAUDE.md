@@ -277,20 +277,25 @@ cd mcp-server && npm install && npm run build
 - [x] Renderiza paragraphs, headings, listas, código, imagens
 - [x] Tela cheia com tema escuro, tipografia grande, funciona offline
 
-### Fase 8 — Organização avançada
+### Fase 8 — Organização avançada ✅ concluída
 
-#### Lixeira
-- [ ] Páginas deletadas vão para a lixeira em vez de sumir imediatamente
-- [ ] Seção "Lixeira" na sidebar com opção de restaurar ou excluir definitivamente
-- [ ] Auto-limpeza após 30 dias; coluna `deleted_at` no SQLite
+#### Lixeira ✅
+- [x] Coluna `deleted_at TEXT` no SQLite — soft delete com migração automática
+- [x] Auto-limpeza de páginas deletadas há mais de 30 dias ao iniciar o app
+- [x] Deletar página move para lixeira (não remove imediatamente)
+- [x] Seção "Lixeira" colapsável no rodapé da sidebar com contador
+- [x] Restaurar página ou excluir definitivamente; botão "Esvaziar lixeira"
 
-#### Calendário de daily notes
-- [ ] Visualização mensal na seção Daily Notes da sidebar
-- [ ] Dias com nota marcados com ponto; clicar abre ou cria a nota do dia
+#### Calendário de daily notes ✅
+- [x] Mini-calendário mensal na seção Daily Notes (substituiu lista simples)
+- [x] Navegação por mês (← →), dias com nota marcados com ponto
+- [x] Dia de hoje destacado; dia selecionado com fundo colorido
+- [x] Clicar num dia abre ou cria a nota daquele dia
 
-#### Ordenação e filtros na sidebar
-- [ ] Menu para ordenar páginas: título A–Z, criação (mais recente), última edição
-- [ ] Filtro rápido por tipo (documento / canvas / daily)
+#### Ordenação e filtros na sidebar ✅
+- [x] Botão de ordenação no header "Páginas": Padrão / A–Z / Editado / Criado
+- [x] Quando ordenação != Padrão exibe lista plana ordenada (sem hierarquia)
+- [x] Estado de ordenação no `ui.store` (persiste durante a sessão)
 
 ### Fase 9 — Produtividade
 

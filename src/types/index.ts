@@ -10,6 +10,7 @@ export interface Page {
   is_favorite: number; // 0 | 1
   type: PageType;
   tags: string[];       // array de tags, ex: ["trabalho", "pessoal"]
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

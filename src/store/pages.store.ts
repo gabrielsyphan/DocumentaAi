@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Page, PageWithChildren } from "../types";
-import { fetchAllPages, upsertPage, removePage } from "../lib/db";
+import { fetchAllPages, fetchTrash, upsertPage, softDeletePage, restorePageFromTrash, removePage } from "../lib/db";
 
 function buildTree(pages: Page[]): PageWithChildren[] {
   const sorted = [...pages].sort((a, b) => a.order_index - b.order_index);
@@ -23,15 +23,20 @@ function buildTree(pages: Page[]): PageWithChildren[] {
 interface PagesState {
   pages: Page[];
   tree: PageWithChildren[];
+  trash: Page[];
   selectedPageId: string | null;
   navHistory: string[];
   navIndex: number;
   loading: boolean;
   load: () => Promise<void>;
+  loadTrash: () => Promise<void>;
   createPage: (parentId?: string, overrides?: { title?: string; emoji?: string; content?: string; type?: Page["type"] }) => Promise<Page>;
-  createDailyNote: () => Promise<Page>;
+  createDailyNote: (dateStr?: string) => Promise<Page>;
   updatePage: (id: string, updates: Partial<Page>) => Promise<void>;
-  deletePage: (id: string) => Promise<void>;
+  trashPage: (id: string) => Promise<void>;
+  restorePage: (id: string) => Promise<void>;
+  permanentDeletePage: (id: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
   movePage: (draggedId: string, targetId: string, position: "before" | "after" | "inside") => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   selectPage: (id: string | null) => void;
@@ -42,6 +47,7 @@ interface PagesState {
 export const usePagesStore = create<PagesState>((set, get) => ({
   pages: [],
   tree: [],
+  trash: [],
   selectedPageId: null,
   navHistory: [],
   navIndex: -1,
@@ -51,6 +57,11 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     set({ loading: true });
     const pages = await fetchAllPages();
     set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")), loading: false });
+  },
+
+  loadTrash: async () => {
+    const trash = await fetchTrash();
+    set({ trash });
   },
 
   createPage: async (parentId, overrides) => {
@@ -65,6 +76,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
       is_favorite: 0,
       type: overrides?.type ?? "document",
       tags: [],
+      deleted_at: null,
       created_at: now,
       updated_at: now,
     };
@@ -74,10 +86,10 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     return page;
   },
 
-  createDailyNote: async () => {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  createDailyNote: async (dateStr) => {
+    const date = dateStr ?? new Date().toISOString().slice(0, 10);
     const { pages } = get();
-    const existing = pages.find((p) => p.type === "daily" && p.title === today);
+    const existing = pages.find((p) => p.type === "daily" && p.title === date);
     if (existing) {
       set({ selectedPageId: existing.id });
       return existing;
@@ -86,13 +98,14 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     const page: Page = {
       id: crypto.randomUUID(),
       parent_id: null,
-      title: today,
+      title: date,
       emoji: "📅",
       content: null,
       order_index: Date.now(),
       is_favorite: 0,
       type: "daily",
       tags: [],
+      deleted_at: null,
       created_at: now,
       updated_at: now,
     };
@@ -111,8 +124,8 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")) });
   },
 
-  deletePage: async (id) => {
-    await removePage(id);
+  trashPage: async (id) => {
+    await softDeletePage(id);
     const pages = get().pages.filter((p) => p.id !== id);
     const { selectedPageId } = get();
     set({
@@ -120,6 +133,26 @@ export const usePagesStore = create<PagesState>((set, get) => ({
       tree: buildTree(pages.filter((p) => p.type !== "daily")),
       selectedPageId: selectedPageId === id ? null : selectedPageId,
     });
+  },
+
+  restorePage: async (id) => {
+    await restorePageFromTrash(id);
+    const allPages = await fetchAllPages();
+    set({ pages: allPages, tree: buildTree(allPages.filter((p) => p.type !== "daily")) });
+    const trash = await fetchTrash();
+    set({ trash });
+  },
+
+  permanentDeletePage: async (id) => {
+    await removePage(id);
+    const trash = get().trash.filter((p) => p.id !== id);
+    set({ trash });
+  },
+
+  emptyTrash: async () => {
+    const { trash } = get();
+    for (const p of trash) await removePage(p.id);
+    set({ trash: [] });
   },
 
   movePage: async (draggedId, targetId, position) => {
@@ -130,7 +163,6 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     let updated: Page;
 
     if (position === "inside") {
-      // Make dragged a child of target, placed at the end
       const targetChildren = pages
         .filter((p) => p.parent_id === targetId && p.id !== draggedId)
         .sort((a, b) => a.order_index - b.order_index);
@@ -174,7 +206,6 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     if (!id) { set({ selectedPageId: null }); return; }
     const { selectedPageId, navHistory, navIndex } = get();
     if (id === selectedPageId) return;
-    // Descarta o "futuro" e empurra o novo destino
     const trimmed = navHistory.slice(0, navIndex + 1);
     const newHistory = [...trimmed, id];
     set({ selectedPageId: id, navHistory: newHistory, navIndex: newHistory.length - 1 });

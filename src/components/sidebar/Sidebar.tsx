@@ -1,8 +1,13 @@
-import { Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays, LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, X as XIcon } from "lucide-react";
+import {
+  Plus, Sun, Moon, Search, Star, FileText, RefreshCw, CalendarDays,
+  LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft,
+  ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePagesStore } from "../../store/pages.store";
-import { useUIStore } from "../../store/ui.store";
+import { useUIStore, type PageSort } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
+import type { Page } from "../../types";
 import PageItem from "./PageItem";
 import { DragProvider } from "./DragContext";
 
@@ -11,11 +16,171 @@ interface Props {
   onTemplates: () => void;
 }
 
+const SORT_LABELS: Record<PageSort, string> = {
+  default: "Padrão",
+  title: "A–Z",
+  updated: "Editado",
+  created: "Criado",
+};
+
+function applySort(pages: Page[], sort: PageSort): Page[] {
+  if (sort === "default") return pages;
+  return [...pages].sort((a, b) => {
+    if (sort === "title") return (a.title || "").localeCompare(b.title || "");
+    if (sort === "updated") return b.updated_at.localeCompare(a.updated_at);
+    if (sort === "created") return b.created_at.localeCompare(a.created_at);
+    return 0;
+  });
+}
+
+// ── Mini-calendário de daily notes ────────────────────────────────────────────
+
+function DailyCalendar({ dailyPages }: { dailyPages: Page[] }) {
+  const { createDailyNote, selectPage, selectedPageId } = usePagesStore();
+  const today = new Date().toISOString().slice(0, 10);
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const { year, month } = viewDate;
+
+  const firstWeekDay = new Date(year, month, 1).getDay(); // 0=Dom
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const notesByDate = new Map(dailyPages.map((p) => [p.title, p]));
+
+  function isoDate(day: number) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function handleDayClick(day: number) {
+    const d = isoDate(day);
+    const existing = notesByDate.get(d);
+    if (existing) { selectPage(existing.id); return; }
+    createDailyNote(d);
+  }
+
+  const cells: (number | null)[] = [
+    ...Array(firstWeekDay).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const monthName = new Date(year, month, 1).toLocaleString("pt-BR", { month: "long", year: "numeric" });
+
+  return (
+    <div className="daily-cal">
+      <div className="daily-cal-header">
+        <button className="daily-cal-nav" onClick={() => setViewDate(({ year: y, month: m }) =>
+          m === 0 ? { year: y - 1, month: 11 } : { year: y, month: m - 1 }
+        )}>
+          <ChevronLeft size={13} />
+        </button>
+        <span className="daily-cal-month">{monthName}</span>
+        <button className="daily-cal-nav" onClick={() => setViewDate(({ year: y, month: m }) =>
+          m === 11 ? { year: y + 1, month: 0 } : { year: y, month: m + 1 }
+        )}>
+          <ChevronRight size={13} />
+        </button>
+      </div>
+      <div className="daily-cal-grid">
+        {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+          <span key={i} className="daily-cal-weekday">{d}</span>
+        ))}
+        {cells.map((day, i) => {
+          if (!day) return <span key={`empty-${i}`} />;
+          const iso = isoDate(day);
+          const hasNote = notesByDate.has(iso);
+          const isToday = iso === today;
+          const note = notesByDate.get(iso);
+          const isSelected = note && selectedPageId === note.id;
+          return (
+            <button
+              key={iso}
+              className={[
+                "daily-cal-day",
+                isToday ? "today" : "",
+                hasNote ? "has-note" : "",
+                isSelected ? "selected" : "",
+              ].filter(Boolean).join(" ")}
+              onClick={() => handleDayClick(day)}
+              title={iso}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Lixeira ───────────────────────────────────────────────────────────────────
+
+function TrashSection() {
+  const { trash, loadTrash, restorePage, permanentDeletePage, emptyTrash } = usePagesStore();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) loadTrash();
+  }, [open, loadTrash]);
+
+  function relativeDate(iso: string) {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+    if (diff === 0) return "hoje";
+    if (diff === 1) return "ontem";
+    return `${diff}d atrás`;
+  }
+
+  return (
+    <div className="trash-section">
+      <button className="sidebar-section-label trash-label" onClick={() => setOpen((v) => !v)}>
+        <Trash2 size={12} />
+        <span>Lixeira{trash.length > 0 && open ? ` (${trash.length})` : ""}</span>
+        <ChevronDown size={11} className={`trash-chevron ${open ? "open" : ""}`} />
+      </button>
+      {open && (
+        <div className="trash-list">
+          {trash.length === 0 ? (
+            <p className="sidebar-empty">Lixeira vazia</p>
+          ) : (
+            <>
+              <button className="trash-empty-btn" onClick={() => { if (confirm("Esvaziar lixeira? Ação irreversível.")) emptyTrash(); }}>
+                <Eraser size={11} /> Esvaziar lixeira
+              </button>
+              {trash.map((page) => (
+                <div key={page.id} className="trash-item">
+                  <span className="trash-item-icon">
+                    {page.emoji ?? (page.type === "canvas" ? <PenTool size={12} /> : <FileText size={12} />)}
+                  </span>
+                  <span className="trash-item-title">{page.title || "Sem título"}</span>
+                  <span className="trash-item-date">{relativeDate(page.deleted_at!)}</span>
+                  <button className="trash-action-btn" onClick={() => restorePage(page.id)} title="Restaurar">
+                    <RotateCcw size={12} />
+                  </button>
+                  <button className="trash-action-btn danger" onClick={() => { if (confirm("Excluir permanentemente?")) permanentDeletePage(page.id); }} title="Excluir para sempre">
+                    <XIcon size={12} />
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Sidebar principal ─────────────────────────────────────────────────────────
+
 export default function Sidebar({ onSearch, onTemplates }: Props) {
   const { pages, tree, createPage, createDailyNote, selectPage, selectedPageId, load, loading } = usePagesStore();
-  const { theme, toggleTheme, activeTag, setActiveTag } = useUIStore();
+  const { theme, toggleTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showNewMenu) return;
@@ -26,27 +191,37 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     return () => document.removeEventListener("mousedown", close);
   }, [showNewMenu]);
 
-  // Auto-refresh quando a janela volta ao foco (ex: usuário usou MCP via Claude)
+  useEffect(() => {
+    if (!showSortMenu) return;
+    const close = (e: MouseEvent) => {
+      if (!sortMenuRef.current?.contains(e.target as Node)) setShowSortMenu(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showSortMenu]);
+
   useEffect(() => {
     const handleFocus = () => load();
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [load]);
-  const favorites = pages.filter((p) => p.is_favorite);
-  const dailyNotes = pages
-    .filter((p) => p.type === "daily")
-    .sort((a, b) => b.title.localeCompare(a.title));
-  const today = new Date().toISOString().slice(0, 10);
 
-  // Tags únicas de todas as páginas (exceto daily)
+  const favorites = pages.filter((p) => p.is_favorite);
+  const dailyNotes = pages.filter((p) => p.type === "daily");
+
   const allTags = Array.from(
     new Set(pages.filter((p) => p.type !== "daily").flatMap((p) => p.tags ?? []))
   ).sort();
 
-  // Quando há filtro ativo, mostra páginas planas com a tag
   const filteredPages = activeTag
     ? pages.filter((p) => p.type !== "daily" && (p.tags ?? []).includes(activeTag))
     : null;
+
+  // Ordenação das páginas planas não-diárias
+  const nonDailyPages = pages.filter((p) => p.type !== "daily");
+  const sortedPages = pageSort !== "default" ? applySort(nonDailyPages, pageSort) : null;
+
+  const SORT_CYCLES: PageSort[] = ["default", "title", "updated", "created"];
 
   return (
     <aside className="sidebar">
@@ -119,21 +294,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
           Hoje
         </button>
       </div>
-      {dailyNotes.length > 0 && (
-        <div className="daily-list">
-          {dailyNotes.map((note) => (
-            <button
-              key={note.id}
-              className={`daily-item ${selectedPageId === note.id ? "active" : ""}`}
-              onClick={() => selectPage(note.id)}
-            >
-              <span className="daily-item-dot">{note.title === today ? "●" : "○"}</span>
-              <span className="daily-item-title">{note.title}</span>
-              {note.title === today && <span className="daily-today-badge">hoje</span>}
-            </button>
-          ))}
-        </div>
-      )}
+      <DailyCalendar dailyPages={dailyNotes} />
 
       {allTags.length > 0 && (
         <>
@@ -162,7 +323,32 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         </>
       )}
 
-      <div className="sidebar-section-label">Páginas</div>
+      <div className="sidebar-section-label pages-section-label">
+        <span>Páginas</span>
+        <div className="sort-menu-wrapper" ref={sortMenuRef}>
+          <button
+            className={`sort-btn${pageSort !== "default" ? " active" : ""}`}
+            onClick={() => setShowSortMenu((v) => !v)}
+            title="Ordenar páginas"
+          >
+            {pageSort === "title" ? <ArrowUpAZ size={12} /> : <Clock size={12} />}
+            {SORT_LABELS[pageSort]}
+          </button>
+          {showSortMenu && (
+            <div className="sort-menu">
+              {SORT_CYCLES.map((s) => (
+                <button
+                  key={s}
+                  className={`sort-menu-item${pageSort === s ? " active" : ""}`}
+                  onMouseDown={() => { setPageSort(s); setShowSortMenu(false); }}
+                >
+                  {SORT_LABELS[s]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <nav className="page-tree">
         {filteredPages ? (
@@ -180,6 +366,27 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
               </button>
             ))
           )
+        ) : sortedPages ? (
+          sortedPages.length === 0 ? (
+            <p className="sidebar-empty">Nenhuma página ainda</p>
+          ) : (
+            sortedPages.map((page) => (
+              <button
+                key={page.id}
+                className={`tag-filtered-item ${selectedPageId === page.id ? "active" : ""}`}
+                onClick={() => selectPage(page.id)}
+              >
+                <span className="page-item-emoji">
+                  {page.emoji ?? (
+                    page.type === "canvas" ? <PenTool size={13} /> :
+                    page.type === "folder" ? <Folder size={13} /> :
+                    <FileText size={13} />
+                  )}
+                </span>
+                <span className="page-item-title">{page.title || "Sem título"}</span>
+              </button>
+            ))
+          )
         ) : (
           <DragProvider>
             {tree.length === 0 ? (
@@ -190,6 +397,8 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
           </DragProvider>
         )}
       </nav>
+
+      <TrashSection />
 
       <div className="sidebar-footer">
         <span className="sidebar-shortcut-hint">
