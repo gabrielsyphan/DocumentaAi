@@ -185,6 +185,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showDailySection, setShowDailySection] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const dueCount = useDueCount();
@@ -331,15 +332,6 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         </>
       )}
 
-      <div className="sidebar-section-label daily-section-label">
-        <span>Daily Notes</span>
-        <button className="daily-today-btn" onClick={() => createDailyNote()} title="Abrir nota de hoje">
-          <CalendarDays size={12} />
-          Hoje
-        </button>
-      </div>
-      <DailyCalendar dailyPages={dailyNotes} />
-
       {allTags.length > 0 && (
         <>
           <div className="sidebar-section-label">Tags</div>
@@ -441,6 +433,27 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
           </DragProvider>
         )}
       </nav>
+
+      <div className="daily-section">
+        <div className="sidebar-section-label daily-section-label">
+          <button
+            className="daily-section-toggle"
+            onClick={() => setShowDailySection((v) => !v)}
+          >
+            <ChevronDown size={11} className={`trash-chevron ${showDailySection ? "open" : ""}`} />
+            Daily Notes
+          </button>
+          <button
+            className="daily-today-btn"
+            onClick={() => createDailyNote()}
+            title="Abrir nota de hoje"
+          >
+            <CalendarDays size={12} />
+            Hoje
+          </button>
+        </div>
+        {showDailySection && <DailyCalendar dailyPages={dailyNotes} />}
+      </div>
 
       <TrashSection />
 

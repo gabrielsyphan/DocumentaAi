@@ -2,6 +2,22 @@ import { create } from "zustand";
 import type { Page, PageWithChildren } from "../types";
 import { fetchAllPages, fetchTrash, upsertPage, softDeletePage, restorePageFromTrash, removePage } from "../lib/db";
 
+function isDailyNoteEmpty(content: string | null): boolean {
+  if (!content) return true;
+  try {
+    const blocks = JSON.parse(content);
+    if (!Array.isArray(blocks) || blocks.length === 0) return true;
+    // Único parágrafo vazio = editor abriu mas nunca foi digitado nada
+    if (blocks.length === 1) {
+      const b = blocks[0];
+      if ((b.type === "paragraph") && (!b.content || b.content.length === 0)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function buildTree(pages: Page[]): PageWithChildren[] {
   const sorted = [...pages].sort((a, b) => a.order_index - b.order_index);
   const map = new Map<string, PageWithChildren>();
@@ -206,8 +222,23 @@ export const usePagesStore = create<PagesState>((set, get) => ({
 
   selectPage: (id) => {
     if (!id) { set({ selectedPageId: null }); return; }
-    const { selectedPageId, navHistory, navIndex } = get();
+    const { selectedPageId, navHistory, navIndex, pages } = get();
     if (id === selectedPageId) return;
+
+    // Se estava em uma daily note vazia criada há menos de 5 min, descarta
+    if (selectedPageId) {
+      const prev = pages.find((p) => p.id === selectedPageId);
+      if (prev?.type === "daily" && isDailyNoteEmpty(prev.content)) {
+        const ageMs = Date.now() - new Date(prev.created_at).getTime();
+        if (ageMs < 5 * 60 * 1000) {
+          removePage(selectedPageId).then(() => {
+            const updated = get().pages.filter((p) => p.id !== selectedPageId);
+            set({ pages: updated, tree: buildTree(updated.filter((p) => p.type !== "daily")) });
+          });
+        }
+      }
+    }
+
     const trimmed = navHistory.slice(0, navIndex + 1);
     const newHistory = [...trimmed, id];
     set({ selectedPageId: id, navHistory: newHistory, navIndex: newHistory.length - 1 });
