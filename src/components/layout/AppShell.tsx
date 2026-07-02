@@ -3,10 +3,10 @@ import type { ReactNode, ErrorInfo } from "react";
 import { FileText, Minimize2, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw } from "lucide-react";
 
 class EditorErrorBoundary extends Component<
-  { children: ReactNode; pageId: string },
+  { children: ReactNode; pageId: string; onClearContent: () => void },
   { error: Error | null }
 > {
-  constructor(props: { children: ReactNode; pageId: string }) {
+  constructor(props: { children: ReactNode; pageId: string; onClearContent: () => void }) {
     super(props);
     this.state = { error: null };
   }
@@ -27,6 +27,11 @@ class EditorErrorBoundary extends Component<
 
   render() {
     if (this.state.error) {
+      const btnBase: React.CSSProperties = {
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "6px 16px", borderRadius: 7, border: "1px solid #3a3a3a",
+        background: "transparent", color: "#e8e8e6", fontSize: 13, cursor: "pointer",
+      };
       return (
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "center",
@@ -42,16 +47,22 @@ class EditorErrorBoundary extends Component<
           }}>
             {this.state.error.message}
           </pre>
-          <button
-            onClick={() => this.setState({ error: null })}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 16px", borderRadius: 7, border: "1px solid #3a3a3a",
-              background: "transparent", color: "#e8e8e6", fontSize: 13, cursor: "pointer",
-            }}
-          >
-            <RotateCcw size={13} /> Tentar novamente
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => this.setState({ error: null })} style={btnBase}>
+              <RotateCcw size={13} /> Tentar novamente
+            </button>
+            <button
+              onClick={() => { this.props.onClearContent(); this.setState({ error: null }); }}
+              style={{ ...btnBase, borderColor: "#f87171", color: "#f87171" }}
+              title="Apaga o conteúdo corrompido e abre a página em branco"
+            >
+              <AlertTriangle size={13} /> Limpar conteúdo
+            </button>
+          </div>
+          <p style={{ fontSize: 11, color: "#555", maxWidth: 400, textAlign: "center" }}>
+            "Limpar conteúdo" apaga os blocos com problema e abre a página em branco.<br />
+            O título e os metadados são preservados.
+          </p>
         </div>
       );
     }
@@ -72,7 +83,7 @@ const IS_MAC = /Mac/.test(navigator.platform);
 const QUICK_CAPTURE_SHORTCUT = IS_MAC ? "⌘⇧Space" : "Ctrl+Shift+Space";
 
 export default function AppShell() {
-  const { selectedPageId, pages, createPage, navBack, navForward, navHistory, navIndex } = usePagesStore();
+  const { selectedPageId, pages, createPage, updatePage, navBack, navForward, navHistory, navIndex } = usePagesStore();
   const canGoBack = navIndex > 0;
   const canGoForward = navIndex < navHistory.length - 1;
   const { focusMode, toggleFocusMode } = useUIStore();
@@ -162,15 +173,15 @@ export default function AppShell() {
         )}
 
         {selectedPageId && selectedPage?.type === "canvas" ? (
-          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId}>
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId} onClearContent={() => updatePage(selectedPageId, { content: null })}>
             <CanvasEditor pageId={selectedPageId} />
           </EditorErrorBoundary>
         ) : selectedPageId && selectedPage?.type === "folder" ? (
-          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId}>
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId} onClearContent={() => updatePage(selectedPageId, { content: null })}>
             <FolderView pageId={selectedPageId} />
           </EditorErrorBoundary>
         ) : selectedPageId ? (
-          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId}>
+          <EditorErrorBoundary key={selectedPageId} pageId={selectedPageId} onClearContent={() => updatePage(selectedPageId, { content: null })}>
             <Editor pageId={selectedPageId} />
           </EditorErrorBoundary>
         ) : (
