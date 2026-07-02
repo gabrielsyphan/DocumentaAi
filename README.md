@@ -134,7 +134,22 @@ O banco SQLite fica salvo em:
 
 O DocumentaAI inclui um servidor MCP que permite que ferramentas de IA leiam e escrevam páginas diretamente, sem precisar que o app esteja aberto.
 
-### Setup (só uma vez)
+> **Requisito:** Node.js >= 18 instalado na máquina ([nodejs.org](https://nodejs.org))
+
+### Setup — instalação via download (app instalado sem o código-fonte)
+
+1. Baixe `documentaai-mcp-server.zip` na [página de releases](https://github.com/gabrielsyphan/documentaai/releases/latest)
+2. Extraia em qualquer pasta permanente (ex: `~/documentaai-mcp/`)
+3. Dentro da pasta extraída, rode:
+
+```bash
+npm install
+npm run build
+```
+
+4. Anote o caminho completo até `dist/index.js` — você vai usá-lo na configuração abaixo
+
+### Setup — clonado do repositório
 
 ```bash
 cd mcp-server

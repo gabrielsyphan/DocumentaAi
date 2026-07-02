@@ -33,6 +33,18 @@ jobs:
                 '| macOS Apple Silicon | `documentaai-macos.dmg` |',
                 '| Windows | `documentaai-windows.exe` |',
                 '| Linux | `documentaai-linux.AppImage` |',
+                '',
+                '## Integração MCP (opcional)',
+                '',
+                'Para usar o DocumentaAI como fonte de dados para IA (Claude Code, Kiro, Cursor…):',
+                '',
+                '1. Baixe `documentaai-mcp-server.zip` e extraia em qualquer pasta',
+                '2. Dentro da pasta extraída, rode:',
+                '   ```bash',
+                '   npm install',
+                '   npm run build',
+                '   ```',
+                '3. Configure seu cliente MCP apontando para `dist/index.js` (veja o README)',
               ].join('\n'),
               draft: false,
               prerelease: false,
@@ -119,8 +131,27 @@ jobs:
           cp "$INSTALLER" "${{ matrix.artifact_name }}"
           gh release upload "${{ github.ref_name }}" "${{ matrix.artifact_name }}" --clobber
 
+  build-mcp:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package MCP server source
+        run: |
+          zip -r documentaai-mcp-server.zip mcp-server \
+            --exclude "mcp-server/node_modules/*" \
+            --exclude "mcp-server/dist/*"
+
+      - name: Upload MCP server package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" documentaai-mcp-server.zip \
+            --repo "${{ github.repository }}" --clobber
+
   publish-manifest:
-    needs: build
+    needs: [build, build-mcp]
     runs-on: ubuntu-latest
     steps:
       - name: Generate and upload latest.json
