@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { usePagesStore } from "./store/pages.store";
 import AppShell from "./components/layout/AppShell";
 import type { Page } from "./types";
-import { Bell, X, FileText } from "lucide-react";
+import { Bell, X, FileText, PenTool, CalendarDays } from "lucide-react";
 
 function ReminderPopup({ reminders, onClose }: { reminders: Page[]; onClose: () => void }) {
   const { selectPage } = usePagesStore();
@@ -26,7 +26,7 @@ function ReminderPopup({ reminders, onClose }: { reminders: Page[]; onClose: () 
               className="reminder-popup-item"
               onClick={() => { selectPage(p.id); onClose(); }}
             >
-              <span className="reminder-popup-emoji">{p.emoji ?? <FileText size={13} />}</span>
+              <span className="reminder-popup-emoji">{p.emoji ?? (p.type === "canvas" ? <PenTool size={13} /> : p.type === "daily" ? <CalendarDays size={13} /> : <FileText size={13} />)}</span>
               <span className="reminder-popup-name">{p.title || "Sem título"}</span>
             </button>
           ))}

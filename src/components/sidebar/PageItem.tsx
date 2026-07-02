@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, ChevronDown, Plus, Trash2, FileText, PenTool, Folder, FolderOpen, X, Check, Star } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Trash2, FileText, PenTool, Folder, FolderOpen, X, Check, Star, CalendarDays } from "lucide-react";
 import type { PageWithChildren } from "../../types";
 import { usePagesStore } from "../../store/pages.store";
 import { useDragCtx } from "./DragContext";
@@ -129,6 +129,7 @@ export default function PageItem({ page, depth }: Props) {
               {page.emoji ?? (
                 page.type === "canvas" ? <PenTool size={13} /> :
                 page.type === "folder" ? (expanded ? <FolderOpen size={13} /> : <Folder size={13} />) :
+                page.type === "daily" ? <CalendarDays size={13} /> :
                 <FileText size={13} />
               )}
             </span>

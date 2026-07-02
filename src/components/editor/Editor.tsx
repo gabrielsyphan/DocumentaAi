@@ -20,7 +20,7 @@ import { getAllSnippets, saveCustomSnippet } from "../../lib/snippets";
 import { CreateFlashcardModal } from "../flashcards/FlashcardPanel";
 import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, BookOpen } from "lucide-react";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool } from "lucide-react";
 
 // ── Presentation helpers ──────────────────────────────────────────────────────
 
@@ -692,7 +692,7 @@ export default function Editor({ pageId }: Props) {
                 .map((p) => ({
                   title: p.title || "Sem título",
                   subtext: p.type === "canvas" ? "Canvas" : "Documento",
-                  icon: p.emoji ? <span style={{ fontSize: 14 }}>{p.emoji}</span> : <FileText size={13} />,
+                  icon: p.emoji ? <span style={{ fontSize: 14 }}>{p.emoji}</span> : (p.type === "daily" ? <CalendarDays size={13} /> : p.type === "canvas" ? <PenTool size={13} /> : <FileText size={13} />),
                   group: "Páginas",
                   onItemClick: () => {
                     editor.insertInlineContent([
@@ -847,7 +847,7 @@ function BacklinksSection({ pageId }: { pageId: string }) {
           {backlinks.map((p) => (
             <button key={p.id} className="backlink-item" onClick={() => selectPage(p.id)}>
               <span className="backlink-icon">
-                {p.emoji ?? <FileText size={12} />}
+                {p.emoji ?? (p.type === "daily" ? <CalendarDays size={12} /> : <FileText size={12} />)}
               </span>
               {p.title || "Sem título"}
             </button>
@@ -1126,7 +1126,7 @@ function DailyAgenda({ date }: { date: string }) {
         <div className="daily-agenda-list">
           {reminders.map((p) => (
             <button key={p.id} className="daily-agenda-item" onClick={() => selectPage(p.id)}>
-              <span className="daily-agenda-emoji">{p.emoji ?? <FileText size={12} />}</span>
+              <span className="daily-agenda-emoji">{p.emoji ?? (p.type === "canvas" ? <PenTool size={12} /> : <FileText size={12} />)}</span>
               <span className="daily-agenda-title">{p.title || "Sem título"}</span>
             </button>
           ))}

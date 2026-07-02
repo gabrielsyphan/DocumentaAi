@@ -171,7 +171,7 @@ function TrashSection() {
               {trash.map((page) => (
                 <div key={page.id} className="trash-item">
                   <span className="trash-item-icon">
-                    {page.emoji ?? (page.type === "canvas" ? <PenTool size={12} /> : <FileText size={12} />)}
+                    {page.emoji ?? (page.type === "canvas" ? <PenTool size={12} /> : page.type === "daily" ? <CalendarDays size={12} /> : <FileText size={12} />)}
                   </span>
                   <span className="trash-item-title">{page.title || "Sem título"}</span>
                   <span className="trash-item-date">{relativeDate(page.deleted_at!)}</span>
@@ -341,7 +341,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         onClick={() => createDailyNote()}
         title="Abrir ou criar nota de hoje"
       >
-        <span className="today-note-icon">📅</span>
+        <CalendarDays size={16} className="today-note-icon" />
         <div className="today-note-info">
           <span className="today-note-label">Hoje</span>
           <span className="today-note-date">{todayLabel}</span>
@@ -363,6 +363,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                   {page.emoji ?? (
                     page.type === "canvas" ? <PenTool size={13} /> :
                     page.type === "folder" ? <FolderOpen size={13} /> :
+                    page.type === "daily" ? <CalendarDays size={13} /> :
                     <FileText size={13} />
                   )}
                 </span>
@@ -439,7 +440,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                 className={`tag-filtered-item ${selectedPageId === page.id ? "active" : ""}`}
                 onClick={() => selectPage(page.id)}
               >
-                <span className="page-item-emoji">{page.emoji ?? <FileText size={13} />}</span>
+                <span className="page-item-emoji">{page.emoji ?? (page.type === "daily" ? <CalendarDays size={13} /> : <FileText size={13} />)}</span>
                 <span className="page-item-title">{page.title || "Sem título"}</span>
               </button>
             ))
@@ -458,6 +459,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                   {page.emoji ?? (
                     page.type === "canvas" ? <PenTool size={13} /> :
                     page.type === "folder" ? <Folder size={13} /> :
+                    page.type === "daily" ? <CalendarDays size={13} /> :
                     <FileText size={13} />
                   )}
                 </span>

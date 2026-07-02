@@ -175,7 +175,7 @@ export default function QuickCaptureApp() {
           `INSERT INTO pages
              (id, parent_id, title, emoji, content, order_index, is_favorite, type, tags, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [crypto.randomUUID(), null, today, "📅", JSON.stringify(newBlocks), 0, 0, "daily", "[]", now, now]
+          [crypto.randomUUID(), null, today, null, JSON.stringify(newBlocks), 0, 0, "daily", "[]", now, now]
         );
       }
 

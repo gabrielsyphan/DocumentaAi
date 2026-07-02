@@ -116,7 +116,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
       id: crypto.randomUUID(),
       parent_id: null,
       title: date,
-      emoji: "📅",
+      emoji: null,
       content: null,
       order_index: Date.now(),
       is_favorite: 0,
