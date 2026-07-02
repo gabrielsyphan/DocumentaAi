@@ -29,14 +29,16 @@ const SORT_LABELS: Record<PageSort, string> = {
   created: "Criado",
 };
 
-function applySort(pages: Page[], sort: PageSort): Page[] {
-  if (sort === "default") return pages;
-  return [...pages].sort((a, b) => {
-    if (sort === "title") return (a.title || "").localeCompare(b.title || "");
+import type { PageWithChildren } from "../../types";
+
+function sortTree(nodes: PageWithChildren[], sort: PageSort): PageWithChildren[] {
+  const cmp = (a: PageWithChildren, b: PageWithChildren): number => {
+    if (sort === "title")   return (a.title || "").localeCompare(b.title || "", "pt-BR", { sensitivity: "base" });
     if (sort === "updated") return b.updated_at.localeCompare(a.updated_at);
     if (sort === "created") return b.created_at.localeCompare(a.created_at);
     return 0;
-  });
+  };
+  return [...nodes].sort(cmp).map(n => ({ ...n, children: sortTree(n.children, sort) }));
 }
 
 // ── Mini-calendário de daily notes ────────────────────────────────────────────
@@ -285,9 +287,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     ? pages.filter((p) => p.type !== "daily" && (p.tags ?? []).includes(activeTag))
     : null;
 
-  // Ordenação das páginas planas não-diárias
-  const nonDailyPages = pages.filter((p) => p.type !== "daily");
-  const sortedPages = pageSort !== "default" ? applySort(nonDailyPages, pageSort) : null;
+  const displayTree = pageSort !== "default" ? sortTree(tree, pageSort) : tree;
 
   const SORT_CYCLES: PageSort[] = ["default", "title", "updated", "created"];
 
@@ -466,34 +466,12 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
               </button>
             ))
           )
-        ) : sortedPages ? (
-          sortedPages.length === 0 ? (
-            <p className="sidebar-empty">Nenhuma página ainda</p>
-          ) : (
-            sortedPages.map((page) => (
-              <button
-                key={page.id}
-                className={`tag-filtered-item ${selectedPageId === page.id ? "active" : ""}`}
-                onClick={() => selectPage(page.id)}
-              >
-                <span className="page-item-emoji">
-                  {page.emoji ?? (
-                    page.type === "canvas" ? <PenTool size={13} /> :
-                    page.type === "folder" ? <Folder size={13} /> :
-                    page.type === "daily" ? <CalendarDays size={13} /> :
-                    <FileText size={13} />
-                  )}
-                </span>
-                <span className="page-item-title">{page.title || "Sem título"}</span>
-              </button>
-            ))
-          )
         ) : (
           <DragProvider>
-            {tree.length === 0 ? (
+            {displayTree.length === 0 ? (
               <p className="sidebar-empty">Nenhuma página ainda</p>
             ) : (
-              tree.map((page) => <PageItem key={page.id} page={page} depth={0} />)
+              displayTree.map((page) => <PageItem key={page.id} page={page} depth={0} />)
             )}
           </DragProvider>
         )}
