@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useRef } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { Maximize2 } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
-import { useUIStore } from "../../store/ui.store";
+import { useUIStore, THEMES } from "../../store/ui.store";
 
 // Carrega Excalidraw de forma lazy — a lib é grande (~2 MB)
 const Excalidraw = lazy(() =>
@@ -19,7 +19,15 @@ export default function CanvasEditor({ pageId }: Props) {
   const page = pages.find((p) => p.id === pageId);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const DEFAULT_APP_STATE = { viewBackgroundColor: "transparent", gridModeEnabled: true };
+  // Fundo do canvas combina com o editor ao criar uma nova página canvas
+  const CANVAS_BG: Record<string, string> = {
+    dark: "#1e1e1e", light: "#ffffff", nord: "#2e3440",
+    dracula: "#282a36", rose: "#191724", solarized: "#002b36",
+  };
+  const DEFAULT_APP_STATE = {
+    viewBackgroundColor: CANVAS_BG[theme] ?? "#1e1e1e",
+    gridModeEnabled: false,
+  };
 
   const initialData = (() => {
     if (!page?.content) return { elements: [], appState: DEFAULT_APP_STATE };
@@ -86,7 +94,7 @@ export default function CanvasEditor({ pageId }: Props) {
               key={pageId}
               initialData={{ ...initialData, scrollToContent: true }}
               onChange={handleChange}
-              theme={theme === "dark" ? "dark" : "light"}
+              theme={THEMES.find((t) => t.value === theme)?.dark !== false ? "dark" : "light"}
             />
           </div>
         </Suspense>

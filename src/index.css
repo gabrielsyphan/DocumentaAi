@@ -2947,3 +2947,140 @@ html, body, #root {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 .pres-dot.active { background: rgba(255,255,255,0.85); }
+
+/* ── Excalidraw theme overrides ──────────────────────────────────────────────
+   Os seletores usam [data-theme] + .canvas-area para ter especificidade maior
+   do que o .excalidraw / .excalidraw.theme--dark do próprio Excalidraw.
+   Variáveis afetadas: superfícies, texto, acento e bordas.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── Dark (padrão) ── */
+[data-theme="dark"] .canvas-area .excalidraw.theme--dark,
+:root .canvas-area .excalidraw.theme--dark {
+  --color-surface-lowest:          #1e1e1e;
+  --color-surface-low:             #252525;
+  --color-surface-mid:             #202020;
+  --color-surface-high:            #2c2c2c;
+  --color-on-surface:              #e2e2e2;
+  --color-primary:                 #9480f5;
+  --color-primary-darker:          #7a69e0;
+  --color-primary-darkest:         #6052cc;
+  --color-primary-light:           #b9abff;
+  --color-primary-hover:           #a393ff;
+  --color-brand-hover:             #b9abff;
+  --color-brand-active:            #7a69e0;
+  --color-surface-primary-container: rgba(148,128,245,0.18);
+  --color-on-primary-container:    #e0dbff;
+  --color-border-outline:          #555;
+  --color-border-outline-variant:  #3a3a3a;
+  --color-muted:                   #888;
+  --color-muted-background:        #2c2c2c;
+}
+
+/* ── Claro ── */
+[data-theme="light"] .canvas-area .excalidraw:not(.theme--dark) {
+  --color-surface-lowest:          #ffffff;
+  --color-surface-low:             #f0efff;
+  --color-surface-mid:             #f5f4ff;
+  --color-surface-high:            #eeeeff;
+  --color-on-surface:              #1b1b1f;
+  --color-primary:                 #7b6cd8;
+  --color-primary-darker:          #6254c0;
+  --color-primary-darkest:         #4a3ea8;
+  --color-primary-light:           #9d90e8;
+  --color-primary-hover:           #8e80e0;
+  --color-brand-hover:             #6254c0;
+  --color-brand-active:            #4a3ea8;
+  --color-surface-primary-container: rgba(123,108,216,0.12);
+  --color-on-primary-container:    #2a1d80;
+  --color-border-outline:          #888;
+  --color-border-outline-variant:  #d0cff0;
+}
+
+/* ── Nord ── */
+[data-theme="nord"] .canvas-area .excalidraw.theme--dark {
+  --color-surface-lowest:          #2e3440;
+  --color-surface-low:             #252b35;
+  --color-surface-mid:             #232830;
+  --color-surface-high:            #3b4252;
+  --color-on-surface:              #eceff4;
+  --color-primary:                 #81A1C1;
+  --color-primary-darker:          #6890b2;
+  --color-primary-darkest:         #507fa3;
+  --color-primary-light:           #9ab8d0;
+  --color-primary-hover:           #8eaeca;
+  --color-brand-hover:             #9ab8d0;
+  --color-brand-active:            #6890b2;
+  --color-surface-primary-container: rgba(129,161,193,0.2);
+  --color-on-primary-container:    #d8e6f0;
+  --color-border-outline:          #4c566a;
+  --color-border-outline-variant:  #3b4252;
+  --color-muted:                   #8898b0;
+  --color-muted-background:        #3b4252;
+}
+
+/* ── Dracula ── */
+[data-theme="dracula"] .canvas-area .excalidraw.theme--dark {
+  --color-surface-lowest:          #282a36;
+  --color-surface-low:             #21222c;
+  --color-surface-mid:             #1e1f27;
+  --color-surface-high:            #343746;
+  --color-on-surface:              #f8f8f2;
+  --color-primary:                 #BD93F9;
+  --color-primary-darker:          #a87cf5;
+  --color-primary-darkest:         #9365f0;
+  --color-primary-light:           #d2b0ff;
+  --color-primary-hover:           #c8a2ff;
+  --color-brand-hover:             #d2b0ff;
+  --color-brand-active:            #a87cf5;
+  --color-surface-primary-container: rgba(189,147,249,0.18);
+  --color-on-primary-container:    #e8dcff;
+  --color-border-outline:          #6272a4;
+  --color-border-outline-variant:  #44475a;
+  --color-muted:                   #6272a4;
+  --color-muted-background:        #44475a;
+}
+
+/* ── Rosé Pine ── */
+[data-theme="rose"] .canvas-area .excalidraw.theme--dark {
+  --color-surface-lowest:          #191724;
+  --color-surface-low:             #1f1d2e;
+  --color-surface-mid:             #1c1a2a;
+  --color-surface-high:            #26233a;
+  --color-on-surface:              #e0def4;
+  --color-primary:                 #c4a7e7;
+  --color-primary-darker:          #b090d8;
+  --color-primary-darkest:         #9c7ac9;
+  --color-primary-light:           #d8beff;
+  --color-primary-hover:           #ccb4ee;
+  --color-brand-hover:             #d8beff;
+  --color-brand-active:            #b090d8;
+  --color-surface-primary-container: rgba(196,167,231,0.18);
+  --color-on-primary-container:    #f0e8ff;
+  --color-border-outline:          #524f67;
+  --color-border-outline-variant:  #26233a;
+  --color-muted:                   #6e6a86;
+  --color-muted-background:        #26233a;
+}
+
+/* ── Solarized ── */
+[data-theme="solarized"] .canvas-area .excalidraw.theme--dark {
+  --color-surface-lowest:          #002b36;
+  --color-surface-low:             #073642;
+  --color-surface-mid:             #053540;
+  --color-surface-high:            #0d4d5c;
+  --color-on-surface:              #93a1a1;
+  --color-primary:                 #268BD2;
+  --color-primary-darker:          #1a7ab9;
+  --color-primary-darkest:         #1068a0;
+  --color-primary-light:           #3ca3e8;
+  --color-primary-hover:           #3097dd;
+  --color-brand-hover:             #3ca3e8;
+  --color-brand-active:            #1a7ab9;
+  --color-surface-primary-container: rgba(38,139,210,0.18);
+  --color-on-primary-container:    #c5e4f8;
+  --color-border-outline:          #586e75;
+  --color-border-outline-variant:  #073642;
+  --color-muted:                   #586e75;
+  --color-muted-background:        #073642;
+}
