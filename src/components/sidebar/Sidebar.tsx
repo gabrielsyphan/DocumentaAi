@@ -264,6 +264,10 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
     return () => window.removeEventListener("focus", handleFocus);
   }, [load]);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayNote = pages.find((p) => p.type === "daily" && p.title === todayStr) ?? null;
+  const todayLabel = new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+
   const favorites = pages.filter((p) => p.is_favorite);
   const dailyNotes = pages.filter((p) => p.type === "daily");
 
@@ -331,6 +335,19 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
           )}
         </div>
       </div>
+
+      <button
+        className={`today-note-card${todayNote && selectedPageId === todayNote.id ? " active" : ""}`}
+        onClick={() => createDailyNote()}
+        title="Abrir ou criar nota de hoje"
+      >
+        <span className="today-note-icon">📅</span>
+        <div className="today-note-info">
+          <span className="today-note-label">Hoje</span>
+          <span className="today-note-date">{todayLabel}</span>
+        </div>
+        {todayNote && <span className="today-note-dot" title="Nota já existe" />}
+      </button>
 
       {favorites.length > 0 && (
         <>

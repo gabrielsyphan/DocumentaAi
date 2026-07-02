@@ -230,6 +230,63 @@ html, body, #root {
   opacity: 0.7;
 }
 
+/* ── Card "Hoje" ─────────────────────────────────────────────────────────────── */
+
+.today-note-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 8px 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--accent-faint, rgba(148,128,245,0.08));
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  width: calc(100% - 16px);
+  transition: background 0.1s, border-color 0.1s;
+}
+.today-note-card:hover {
+  background: var(--accent-faint, rgba(148,128,245,0.14));
+  border-color: var(--accent);
+}
+.today-note-card.active {
+  background: var(--accent-faint, rgba(148,128,245,0.14));
+  border-color: var(--accent);
+}
+
+.today-note-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+
+.today-note-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.today-note-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sidebar-text-active);
+  line-height: 1.2;
+}
+
+.today-note-date {
+  font-size: 10px;
+  color: var(--sidebar-text);
+  opacity: 0.75;
+  text-transform: capitalize;
+}
+
+.today-note-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
 .daily-section { margin-top: 2px; }
 
 .daily-section-label {
