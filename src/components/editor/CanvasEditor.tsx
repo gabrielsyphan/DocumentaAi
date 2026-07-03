@@ -68,6 +68,20 @@ export default function CanvasEditor({ pageId }: Props) {
     return () => clearTimeout(saveTimer.current);
   }, []);
 
+  // Acompanha trocas de tema do app: só atualiza o fundo do canvas se ele
+  // ainda for uma cor padrão de algum tema (evita sobrescrever cor customizada
+  // pelo usuário no próprio menu do Excalidraw).
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    const knownBgColors = Object.values(CANVAS_BG);
+    const current = api.getAppState().viewBackgroundColor;
+    if (knownBgColors.includes(current)) {
+      api.updateScene({ appState: { viewBackgroundColor: CANVAS_BG[theme] ?? "#1e1e1e" } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleChange(elements: readonly any[], appState: any, files: any) {
     clearTimeout(saveTimer.current);

@@ -31,10 +31,14 @@ export default function PageItem({ page, depth }: Props) {
   const isDragging = draggedId === page.id;
   const isOver = overId === page.id;
 
-  // Auto-expand when something is dropped inside this page
+  // Auto-expand ao arrastar por cima: só expande depois de pairar
+  // um tempinho, pra não abrir instantaneamente ao só passar por cima
+  // enquanto arrasta pra outro lugar.
   useEffect(() => {
-    if (isOver && overPosition === "inside") expandPage(page.id);
-  }, [isOver, overPosition]);
+    if (!isOver || overPosition !== "inside" || expanded) return;
+    const timer = setTimeout(() => expandPage(page.id), 600);
+    return () => clearTimeout(timer);
+  }, [isOver, overPosition, expanded, page.id, expandPage]);
 
   function handlePointerDown(e: React.PointerEvent) {
     if (e.button !== 0 || confirming) return;
