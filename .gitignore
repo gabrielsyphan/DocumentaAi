@@ -7,7 +7,9 @@ dist-ssr/
 
 # Tauri
 src-tauri/target/
-src-tauri/gen/
+# gen/android é versionado (CI builda o APK a partir dele); o .gitignore
+# interno do projeto Android já exclui build/, keystore.properties etc.
+src-tauri/gen/schemas/
 
 # IDE
 .idea/

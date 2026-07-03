@@ -4,6 +4,7 @@ import { Maximize2 } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, THEMES } from "../../store/ui.store";
 import { CANVAS_LIBRARY } from "../../lib/canvas-library";
+import { useIsMobile } from "../../hooks/useIsMobile";
 
 // Carrega Excalidraw de forma lazy — a lib é grande (~2 MB)
 const Excalidraw = lazy(() =>
@@ -18,6 +19,7 @@ export default function CanvasEditor({ pageId }: Props) {
   const { pages, updatePage } = usePagesStore();
   const { theme, focusMode, toggleFocusMode } = useUIStore();
   const page = pages.find((p) => p.id === pageId);
+  const isMobile = useIsMobile();
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiRef = useRef<any>(null);
@@ -141,6 +143,11 @@ export default function CanvasEditor({ pageId }: Props) {
                 // merge:false substitui sempre — evita duplicatas ao navegar entre canvas
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (api as any).updateLibrary({ libraryItems: CANVAS_LIBRARY, merge: false });
+                // No touch, navegar pelo canvas é a ação primária — abre com a
+                // mãozinha (pan) em vez da seleção, que arrasta elementos sem querer
+                if (isMobile) {
+                  api.setActiveTool({ type: "hand" });
+                }
               }}
             />
           </div>

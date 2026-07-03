@@ -127,17 +127,20 @@ export async function upsertPage(page: Page): Promise<void> {
 
 export async function softDeletePage(id: string): Promise<void> {
   const database = await getDb();
+  // updated_at também é atualizado para o sync LWW propagar a deleção
+  const now = new Date().toISOString();
   await database.execute(
-    "UPDATE pages SET deleted_at = datetime('now') WHERE id = $1",
-    [id]
+    "UPDATE pages SET deleted_at = $1, updated_at = $1 WHERE id = $2",
+    [now, id]
   );
 }
 
 export async function restorePageFromTrash(id: string): Promise<void> {
   const database = await getDb();
+  // updated_at também é atualizado para o sync LWW propagar a restauração
   await database.execute(
-    "UPDATE pages SET deleted_at = NULL WHERE id = $1",
-    [id]
+    "UPDATE pages SET deleted_at = NULL, updated_at = $1 WHERE id = $2",
+    [new Date().toISOString(), id]
   );
 }
 
@@ -229,6 +232,110 @@ export async function countDueFlashcards(): Promise<number> {
 export async function deleteFlashcard(id: string): Promise<void> {
   const database = await getDb();
   await database.execute("DELETE FROM flashcards WHERE id = $1", [id]);
+}
+
+// ── Sync por rede local ───────────────────────────────────────────────────────
+
+// Linha crua da tabela pages — o formato que trafega no protocolo de sync
+// (tags permanece string JSON; datas permanecem strings)
+export interface SyncPageRow {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  emoji: string | null;
+  content: string | null;
+  order_index: number;
+  is_favorite: number;
+  type: string;
+  tags: string;
+  deleted_at: string | null;
+  reminder_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Todas as páginas, incluindo as da lixeira — o sync precisa propagar deleções. */
+export async function fetchAllPagesForSync(): Promise<SyncPageRow[]> {
+  const database = await getDb();
+  return database.select<SyncPageRow[]>(
+    `SELECT id, parent_id, title, emoji, content, order_index, is_favorite,
+            type, tags, deleted_at, reminder_date, created_at, updated_at
+     FROM pages`
+  );
+}
+
+// datetime('now') do SQLite gera "YYYY-MM-DD HH:MM:SS"; toISOString() gera
+// "YYYY-MM-DDTHH:MM:SS.sssZ". Ambos UTC — trocar espaço por T ordena certo.
+function normTs(ts: string): string {
+  return ts.replace(" ", "T");
+}
+
+/**
+ * Aplica páginas vindas do outro dispositivo.
+ * - mode "newer" (merge): só aplica se updated_at for mais recente que o local
+ * - mode "force" (baixar do desktop): aplica incondicionalmente — sobrescreve
+ *   a cópia local e recria páginas até se estavam na lixeira daqui
+ *
+ * Cuidados com a FK parent_id REFERENCES pages(id) ON DELETE CASCADE:
+ * - pais são aplicados antes dos filhos (ordenação topológica no lote)
+ * - upsert via ON CONFLICT DO UPDATE — nunca INSERT OR REPLACE, que executa
+ *   DELETE+INSERT internamente e dispararia o CASCADE apagando subpáginas
+ */
+export async function applySyncPages(
+  pages: SyncPageRow[],
+  mode: "newer" | "force" = "newer"
+): Promise<number> {
+  const database = await getDb();
+
+  // Ordena o lote: pais antes dos filhos (à prova de ciclos via visited)
+  const byId = new Map(pages.map((p) => [p.id, p]));
+  const sorted: SyncPageRow[] = [];
+  const visited = new Set<string>();
+  const visit = (p: SyncPageRow) => {
+    if (visited.has(p.id)) return;
+    visited.add(p.id);
+    if (p.parent_id && byId.has(p.parent_id)) visit(byId.get(p.parent_id)!);
+    sorted.push(p);
+  };
+  pages.forEach(visit);
+
+  let applied = 0;
+  for (const p of sorted) {
+    if (mode === "newer") {
+      const local = await database.select<{ updated_at: string }[]>(
+        "SELECT updated_at FROM pages WHERE id = $1",
+        [p.id]
+      );
+      const isNewer = local.length === 0 || normTs(p.updated_at) > normTs(local[0].updated_at);
+      if (!isNewer) continue;
+    }
+    await database.execute(
+      `INSERT INTO pages
+        (id, parent_id, title, emoji, content, order_index, is_favorite,
+         type, tags, deleted_at, reminder_date, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT(id) DO UPDATE SET
+         parent_id     = excluded.parent_id,
+         title         = excluded.title,
+         emoji         = excluded.emoji,
+         content       = excluded.content,
+         order_index   = excluded.order_index,
+         is_favorite   = excluded.is_favorite,
+         type          = excluded.type,
+         tags          = excluded.tags,
+         deleted_at    = excluded.deleted_at,
+         reminder_date = excluded.reminder_date,
+         created_at    = excluded.created_at,
+         updated_at    = excluded.updated_at`,
+      [
+        p.id, p.parent_id, p.title, p.emoji, p.content, p.order_index,
+        p.is_favorite, p.type, p.tags, p.deleted_at, p.reminder_date,
+        p.created_at, p.updated_at,
+      ]
+    );
+    applied++;
+  }
+  return applied;
 }
 
 // Creates a consistent full backup at destPath using VACUUM INTO (includes WAL data).

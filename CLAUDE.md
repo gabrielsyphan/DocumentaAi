@@ -344,11 +344,58 @@ cd mcp-server && npm install && npm run build
 - [ ] Responder perguntas sobre o conteúdo da página
 - [ ] Suporte a Ollama (`http://localhost:11434`) e APIs externas com chave configurável pelo usuário
 
-### Fase 12 — Sync (futuro)
+### Fase 12 — App Mobile Android (Tauri v2) ✅ concluída
+
+Mesmo codebase do desktop — o Tauri v2 compila o app React existente para Android.
+Distribuição por APK sideload (sem Play Store), assinado com keystore própria.
+
+- [x] Projeto Android em `src-tauri/gen/android` (versionado — o CI builda a partir dele)
+- [x] Compilação condicional: plugins desktop-only (updater, process, autostart,
+      global-shortcut, tray) atrás de `#[cfg(desktop)]`; `tauri.android.conf.json`
+      define só a janela main (Android não tem múltiplas janelas)
+- [x] Capabilities separadas por plataforma (`default`/`quick-capture` desktop; `mobile`)
+- [x] `MainActivity.kt` aplica window insets (status bar/gestos/teclado) — Android 15+
+      força edge-to-edge
+- [x] UI mobile: sidebar vira drawer (hambúrguer + backdrop), botões de ação sempre
+      visíveis, touch targets maiores, topbar em duas linhas, scroll liberado
+      (`touch-action: pan-y`) e drag-and-drop por long-press (400ms + vibração)
+- [x] Desktop-only escondidos no mobile: TTS, export MD/PDF, atalhos de teclado
+- [x] Keystore em `~/.android/documentaai-release.jks` (senha em
+      `src-tauri/gen/android/keystore.properties`, fora do git) — **fazer backup!**
+- [x] Job `build-android` no release.yml: APK universal assinado anexado ao release
+      (requer secrets `ANDROID_KEYSTORE_B64` e `ANDROID_KEYSTORE_PASSWORD`)
+
+### Fase 13 — Sync por rede local ✅ concluída
+
+Sem nuvem, sem conta: o desktop roda um servidor HTTP (`axum`, porta 7420) e o
+celular sincroniza quando está na mesma rede Wi-Fi.
+
+- [x] Servidor em `src-tauri/src/sync_server.rs` (desktop-only), comandos Tauri
+      `sync_server_start/stop/status`; SQLite via sqlx com `foreign_keys(false)`
+      (FK ligada quebrava inserção de subpáginas e o CASCADE apagaria filhos)
+- [x] Modal Sync (botão no rodapé da sidebar): no desktop mostra IP:porta em
+      destaque + QR code e liga/desliga o servidor; no mobile, campo com máscara
+      de IP (pontos e `:` automáticos) + três ações
+- [x] Três modos: **Sincronizar** (merge last-write-wins por `updated_at`, propaga
+      deleções), **Baixar do desktop** e **Enviar p/ desktop** (direcionais forçados:
+      sobrescrevem/criam sem nunca deletar — recriam páginas deletadas no destino)
+- [x] Merge seguro com a FK `parent_id`: upsert `ON CONFLICT DO UPDATE` (nunca
+      `INSERT OR REPLACE`, que dispara DELETE+CASCADE) e ordenação topológica
+- [x] Soft delete/restore agora atualizam `updated_at` (sem isso deleções não
+      propagariam no merge)
+- [x] Android: cleartext HTTP liberado no manifest (LAN não tem TLS)
+
+### Fase 14 — Home screen ✅ concluída
+- [x] Tela inicial (sem página aberta) em `src/components/home/HomeScreen.tsx`:
+      saudação por hora + data, ações rápidas (nova página, canvas, nota de hoje,
+      buscar, templates), favoritas em chips, recentes em grid
+- [x] Visual sóbrio (sem emojis/gradientes), fade-in em cascata discreto
+- [x] Clicar em favorito revela o item na árvore (expande ancestrais + scroll)
+
+### Fase 15 — Sync na nuvem (futuro distante)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)
 - [ ] Auth (Clerk ou similar)
 - [ ] Sync em tempo real
-- [ ] App mobile (React Native ou PWA)
 
 ## Contexto para novas conversas
 

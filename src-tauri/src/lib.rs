@@ -1,6 +1,11 @@
 use tauri::Manager;
+#[cfg(desktop)]
+mod sync_server;
+#[cfg(desktop)]
 use tauri::tray::TrayIconBuilder;
+#[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, CheckMenuItemBuilder, PredefinedMenuItem};
+#[cfg(desktop)]
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 #[cfg(target_os = "macos")]
 use std::sync::Mutex;
@@ -339,29 +344,50 @@ fn close_quick_capture(app: tauri::AppHandle) {
 /// Enables or disables launching DocumentaAI automatically at login.
 #[tauri::command]
 async fn set_autostart(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_autostart::ManagerExt;
-    if enabled {
-        app.autolaunch().enable().map_err(|e| e.to_string())?;
-    } else {
-        app.autolaunch().disable().map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        return if enabled {
+            app.autolaunch().enable().map_err(|e| e.to_string())
+        } else {
+            app.autolaunch().disable().map_err(|e| e.to_string())
+        };
     }
-    Ok(())
+    #[cfg(mobile)]
+    {
+        let _ = (enabled, app);
+        Err("Iniciar com o sistema não está disponível no Android.".to_string())
+    }
 }
 
 /// Returns whether launching at login is currently enabled.
 #[tauri::command]
 async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
-    use tauri_plugin_autostart::ManagerExt;
-    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        return app.autolaunch().is_enabled().map_err(|e| e.to_string());
+    }
+    #[cfg(mobile)]
+    {
+        let _ = app;
+        Ok(false)
+    }
 }
 
+// No mobile, o app inicia pela lib (não existe main.rs) — este atributo gera o entry point
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init());
+
+    // Plugins desktop-only: updater, process, autostart e atalho global (quick capture)
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_updater::Builder::default().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_dialog::init())
-        // MacosLauncher is required by tauri-plugin-autostart 2.x on all platforms.
+        // MacosLauncher is required by tauri-plugin-autostart 2.x on all desktop platforms.
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--hidden"]),
@@ -385,19 +411,51 @@ pub fn run() {
                     }
                 })
                 .build(),
-        )
-        .invoke_handler(tauri::generate_handler![
-            close_quick_capture,
-            set_autostart,
-            get_autostart,
-            request_speech_permission,
-            start_transcription,
-            stop_transcription,
-            pick_backup_save_path,
-            pick_restore_file,
-            apply_restore,
-        ])
+        );
+
+    builder
+        .invoke_handler({
+            #[cfg(desktop)]
+            {
+                tauri::generate_handler![
+                    close_quick_capture,
+                    set_autostart,
+                    get_autostart,
+                    request_speech_permission,
+                    start_transcription,
+                    stop_transcription,
+                    pick_backup_save_path,
+                    pick_restore_file,
+                    apply_restore,
+                    sync_server::sync_server_status,
+                    sync_server::sync_server_start,
+                    sync_server::sync_server_stop,
+                ]
+            }
+            #[cfg(mobile)]
+            {
+                tauri::generate_handler![
+                    close_quick_capture,
+                    set_autostart,
+                    get_autostart,
+                    request_speech_permission,
+                    start_transcription,
+                    stop_transcription,
+                    pick_backup_save_path,
+                    pick_restore_file,
+                    apply_restore,
+                ]
+            }
+        })
         .setup(|app| {
+            // No Android não há tray, atalho global nem múltiplas janelas —
+            // todo o bloco abaixo é desktop-only
+            #[cfg(mobile)]
+            {
+                let _ = &app;
+            }
+            #[cfg(desktop)]
+            {
             // When launched at login with --hidden, keep the main window hidden
             let args: Vec<String> = std::env::args().collect();
             if args.contains(&"--hidden".to_string()) {
@@ -477,6 +535,7 @@ pub fn run() {
             });
 
             app.global_shortcut().register("CmdOrCtrl+Shift+Space")?;
+            } // fim do bloco #[cfg(desktop)]
             Ok(())
         })
         .build(tauri::generate_context!())

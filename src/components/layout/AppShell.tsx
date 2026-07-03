@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
-import { FileText, Minimize2, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw } from "lucide-react";
+import { Minimize2, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw, Menu } from "lucide-react";
+import { useIsMobile } from "../../hooks/useIsMobile";
 
 class EditorErrorBoundary extends Component<
   { children: ReactNode; pageId: string; onClearContent: () => void },
@@ -79,6 +80,7 @@ import BoardEditor from "../editor/BoardEditor";
 import SearchModal from "../search/SearchModal";
 import TemplateGallery from "../templates/TemplateGallery";
 import UpdateBanner from "./UpdateBanner";
+import HomeScreen from "../home/HomeScreen";
 
 const IS_MAC = /Mac/.test(navigator.platform);
 const QUICK_CAPTURE_SHORTCUT = IS_MAC ? "⌘⇧Space" : "Ctrl+Shift+Space";
@@ -87,10 +89,16 @@ export default function AppShell() {
   const { selectedPageId, pages, createPage, updatePage, navBack, navForward, navHistory, navIndex } = usePagesStore();
   const canGoBack = navIndex > 0;
   const canGoForward = navIndex < navHistory.length - 1;
-  const { focusMode, toggleFocusMode } = useUIStore();
+  const { focusMode, toggleFocusMode, sidebarOpen, toggleSidebar, setSidebarOpen } = useUIStore();
   const selectedPage = pages.find((p) => p.id === selectedPageId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  // No mobile, navegar para uma página fecha o drawer
+  useEffect(() => {
+    if (isMobile && selectedPageId) setSidebarOpen(false);
+  }, [selectedPageId, isMobile, setSidebarOpen]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -136,12 +144,26 @@ export default function AppShell() {
   }, [handleKeyDown]);
 
   return (
-    <div className={`app-shell${focusMode ? " focus-mode" : ""}`}>
+    <div
+      className={`app-shell${focusMode ? " focus-mode" : ""}${
+        isMobile && sidebarOpen ? " mobile-sidebar-open" : ""
+      }`}
+    >
       {!focusMode && (
-        <Sidebar onSearch={() => setSearchOpen(true)} onTemplates={() => setTemplatesOpen(true)} />
+        <>
+          <Sidebar onSearch={() => setSearchOpen(true)} onTemplates={() => setTemplatesOpen(true)} />
+          {isMobile && sidebarOpen && (
+            <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+          )}
+        </>
       )}
 
       <main className="editor-area">
+        {isMobile && !focusMode && (
+          <button className="mobile-menu-btn" onClick={toggleSidebar} title="Menu">
+            <Menu size={20} />
+          </button>
+        )}
         {focusMode && (
           <button
             className="focus-exit-btn"
@@ -190,13 +212,10 @@ export default function AppShell() {
             <Editor pageId={selectedPageId} />
           </EditorErrorBoundary>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FileText size={22} />
-            </div>
-            <p>Selecione ou crie uma página</p>
-            <p className="empty-hint">⌘N nova página · ⌘K buscar</p>
-          </div>
+          <HomeScreen
+            onSearch={() => setSearchOpen(true)}
+            onTemplates={() => setTemplatesOpen(true)}
+          />
         )}
       </main>
 

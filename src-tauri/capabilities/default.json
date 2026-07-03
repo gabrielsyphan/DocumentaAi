@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2/capability",
   "identifier": "default",
-  "description": "Default capability for DocumentaAI",
+  "description": "Default capability for DocumentaAI (desktop)",
+  "platforms": ["macOS", "windows", "linux"],
   "windows": ["main"],
   "permissions": [
     "core:default",

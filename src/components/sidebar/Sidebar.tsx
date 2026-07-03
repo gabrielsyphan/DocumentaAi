@@ -3,7 +3,9 @@ import {
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft, LayoutGrid,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
   FileUp, Palette, BookOpen, Network, Check, HardDriveDownload, HardDriveUpload,
+  MonitorSmartphone,
 } from "lucide-react";
+import SyncModal from "../sync/SyncModal";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
@@ -150,9 +152,9 @@ function TrashSection() {
   return (
     <div className="trash-section">
       <button className="sidebar-section-label trash-label" onClick={() => setOpen((v) => !v)}>
+        <ChevronDown size={11} className={`trash-chevron ${open ? "open" : ""}`} />
         <Trash2 size={12} />
         <span>Lixeira{trash.length > 0 && open ? ` (${trash.length})` : ""}</span>
-        <ChevronDown size={11} className={`trash-chevron ${open ? "open" : ""}`} />
       </button>
       {open && (
         <div className="trash-list">
@@ -213,15 +215,36 @@ function TrashSection() {
 
 export default function Sidebar({ onSearch, onTemplates }: Props) {
   const { pages, tree, createPage, createDailyNote, selectPage, selectedPageId, load, loading } = usePagesStore();
-  const { theme, setTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
+  const { theme, setTheme, activeTag, setActiveTag, pageSort, setPageSort, expandPage } = useUIStore();
+
+  /** Abre um item revelando-o na árvore: expande os ancestrais e rola até ele. */
+  function revealInTree(pageId: string) {
+    const byId = new Map(pages.map((p) => [p.id, p]));
+    let cur = byId.get(pageId)?.parent_id ?? null;
+    const seen = new Set<string>(); // proteção contra ciclos de parent_id
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      expandPage(cur);
+      cur = byId.get(cur)?.parent_id ?? null;
+    }
+    selectPage(pageId);
+    // espera a árvore renderizar expandida antes de rolar até o item
+    setTimeout(() => {
+      document
+        .querySelector(`.page-tree [data-page-id="${CSS.escape(pageId)}"]`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 80);
+  }
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortMenuRect, setSortMenuRect] = useState<DOMRect | null>(null);
   const sortBtnRef = useRef<HTMLButtonElement>(null);
   const [showThemePicker, setShowThemePicker] = useState(false);
-  const [showDailySection, setShowDailySection] = useState(true);
+  // Daily Notes sempre começa fechada (desktop e mobile)
+  const [showDailySection, setShowDailySection] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
+  const [showSync, setShowSync] = useState(false);
   const dueCount = useDueCount();
   const [appVersion, setAppVersion] = useState("");
   const [backupStatus, setBackupStatus] = useState<"idle" | "busy" | "ok" | "err">("idle");
@@ -414,7 +437,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
               <button
                 key={page.id}
                 className={`favorite-item ${selectedPageId === page.id ? "active" : ""}`}
-                onClick={() => selectPage(page.id)}
+                onClick={() => revealInTree(page.id)}
               >
                 <span className="favorite-item-icon">
                   {page.emoji ?? (
@@ -536,6 +559,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
             onClick={() => setShowDailySection((v) => !v)}
           >
             <ChevronDown size={11} className={`trash-chevron ${showDailySection ? "open" : ""}`} />
+            <CalendarDays size={12} />
             Notas diárias
           </button>
           <button
@@ -556,10 +580,17 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         <button
           className="theme-toggle"
           onClick={() => load()}
-          title="Sincronizar páginas"
+          title="Recarregar páginas"
           disabled={loading}
         >
           <RefreshCw size={16} className={loading ? "spin" : ""} />
+        </button>
+        <button
+          className="theme-toggle"
+          onClick={() => setShowSync(true)}
+          title="Sync por rede local (desktop ↔ celular)"
+        >
+          <MonitorSmartphone size={16} />
         </button>
         <div style={{ position: "relative" }} ref={themePickerRef}>
           <button
@@ -677,18 +708,25 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         </div>
       </div>
 
-      {showReview && <ReviewSession onClose={() => setShowReview(false)} />}
+      {/* Modais em portal no <body>: no mobile a sidebar vira drawer com
+          transform, o que faria o position:fixed deles alinhar ao drawer
+          em vez da tela */}
+      {showReview &&
+        createPortal(<ReviewSession onClose={() => setShowReview(false)} />, document.body)}
+      <SyncModal open={showSync} onClose={() => setShowSync(false)} />
 
-      {showGraph && (
-        <Suspense fallback={null}>
-          <GraphView
-            pages={pages}
-            selectedPageId={selectedPageId}
-            onSelectPage={selectPage}
-            onClose={() => setShowGraph(false)}
-          />
-        </Suspense>
-      )}
+      {showGraph &&
+        createPortal(
+          <Suspense fallback={null}>
+            <GraphView
+              pages={pages}
+              selectedPageId={selectedPageId}
+              onSelectPage={selectPage}
+              onClose={() => setShowGraph(false)}
+            />
+          </Suspense>,
+          document.body
+        )}
     </aside>
   );
 }

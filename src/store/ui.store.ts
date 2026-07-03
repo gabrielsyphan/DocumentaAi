@@ -29,6 +29,7 @@ interface UIState {
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
   setActiveTag: (tag: string | null) => void;
   toggleFocusMode: () => void;
   setPageSort: (sort: PageSort) => void;
@@ -39,7 +40,8 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   theme: savedTheme,
-  sidebarOpen: true,
+  // No mobile o drawer começa fechado; no desktop a sidebar começa visível
+  sidebarOpen: window.innerWidth > 768,
   activeTag: null,
   focusMode: false,
   pageSort: "default",
@@ -60,6 +62,7 @@ export const useUIStore = create<UIState>((set) => ({
     }),
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setActiveTag: (tag) => set({ activeTag: tag }),
   toggleFocusMode: () => set((s) => ({ focusMode: !s.focusMode })),
   setPageSort: (pageSort) => set({ pageSort }),

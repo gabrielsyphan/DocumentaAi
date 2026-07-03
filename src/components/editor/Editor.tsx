@@ -14,6 +14,7 @@ import { blocksToMarkdown, printToPdf } from "../../lib/export";
 import { saveCustomTemplate, stripBlockIds } from "../../lib/templates";
 import { tagColor, normalizeTag } from "../../lib/tags";
 import { useTTS, countWords, type TTSState } from "../../lib/tts";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
 import { getAllSnippets, saveCustomSnippet, loadCustomSnippets, deleteCustomSnippet, type Snippet } from "../../lib/snippets";
@@ -297,6 +298,7 @@ export default function Editor({ pageId }: Props) {
   const { pages, updatePage } = usePagesStore();
   const { theme, toggleFocusMode } = useUIStore();
   const tts = useTTS();
+  const isMobile = useIsMobile();
   const page = pages.find((p) => p.id === pageId);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const versionTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -596,7 +598,8 @@ export default function Editor({ pageId }: Props) {
             autoFocus={!page?.title}
           />
           <div className="topbar-actions" onMouseDown={(e) => e.stopPropagation()}>
-            {tts.supported && (
+            {/* TTS não funciona bem no WebView Android — desktop-only */}
+            {!isMobile && tts.supported && (
               <button
                 className={`topbar-action-btn${tts.speaking ? " active" : ""}`}
                 onClick={tts.speaking ? tts.stop : () => tts.play(editor.document as object[])}
@@ -678,13 +681,19 @@ export default function Editor({ pageId }: Props) {
             </button>
             {showExport && (
               <div className="export-menu">
-                <button className="export-menu-item" onMouseDown={handleExportMd}>
-                  <FileDown size={13} /> Exportar Markdown
-                </button>
-                <button className="export-menu-item" onMouseDown={handleExportPdf}>
-                  <Printer size={13} /> Exportar PDF
-                </button>
-                <div className="export-menu-divider" />
+                {/* Download de arquivo e window.print() não funcionam no WebView
+                    Android — no mobile só template/snippet ficam disponíveis */}
+                {!isMobile && (
+                  <>
+                    <button className="export-menu-item" onMouseDown={handleExportMd}>
+                      <FileDown size={13} /> Exportar Markdown
+                    </button>
+                    <button className="export-menu-item" onMouseDown={handleExportPdf}>
+                      <Printer size={13} /> Exportar PDF
+                    </button>
+                    <div className="export-menu-divider" />
+                  </>
+                )}
                 <button className="export-menu-item" onMouseDown={handleSaveTemplate}>
                   <BookTemplate size={13} /> Salvar como template
                 </button>

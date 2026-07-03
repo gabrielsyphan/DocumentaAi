@@ -33,6 +33,10 @@ jobs:
                 '| macOS Apple Silicon | `documentaai-macos.dmg` |',
                 '| Windows | `documentaai-windows.exe` |',
                 '| Linux | `documentaai-linux.AppImage` |',
+                '| Android | `documentaai-android.apk` |',
+                '',
+                '**Android:** baixe o APK no celular e toque para instalar',
+                '(permita "instalar de fontes desconhecidas" se solicitado).',
                 '',
                 '## Integração MCP (opcional)',
                 '',
@@ -130,6 +134,69 @@ jobs:
           echo "Installer: $INSTALLER"
           cp "$INSTALLER" "${{ matrix.artifact_name }}"
           gh release upload "${{ github.ref_name }}" "${{ matrix.artifact_name }}" --clobber
+
+  build-android:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Rust (Android targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Install Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;29.0.14206865"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Sync version from git tag
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          jq --arg v "$VERSION" '.version = $v' src-tauri/tauri.conf.json > tauri.conf.tmp
+          mv tauri.conf.tmp src-tauri/tauri.conf.json
+          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          echo "Versão definida como $VERSION"
+
+      - name: Restore signing keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$RUNNER_TEMP/documentaai-release.jks"
+          cat > src-tauri/gen/android/keystore.properties << EOF
+          keyAlias=documentaai
+          password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          storeFile=$RUNNER_TEMP/documentaai-release.jks
+          EOF
+
+      - name: Build signed APK (all architectures)
+        run: npm run tauri android build -- --apk
+
+      - name: Upload APK to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "app-universal-release.apk" | head -1)
+          echo "APK: $APK"
+          cp "$APK" documentaai-android.apk
+          gh release upload "${{ github.ref_name }}" documentaai-android.apk \
+            --repo "${{ github.repository }}" --clobber
 
   build-mcp:
     needs: create-release

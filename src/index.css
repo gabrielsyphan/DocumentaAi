@@ -3809,3 +3809,509 @@ html, body, #root {
   transition: background 0.12s;
 }
 .board-modal-save:hover { background: var(--accent-hover, #a993ff); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Mobile (Android) — sidebar vira drawer deslizante
+   ═══════════════════════════════════════════════════════════════ */
+.mobile-menu-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Sidebar fixa fora da tela; desliza para dentro quando aberta */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: 290px;
+    min-width: 290px;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+
+  .app-shell.mobile-sidebar-open .sidebar {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.42);
+  }
+
+  /* Botão hambúrguer flutuante no topo do editor */
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 40;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--sidebar-bg);
+    color: var(--editor-text);
+    cursor: pointer;
+  }
+
+  /* Dicas de atalhos de teclado não fazem sentido no touch */
+  .empty-hint,
+  .sidebar-shortcut-hint,
+  .sidebar-kbd {
+    display: none !important;
+  }
+
+  /* Touch targets maiores na árvore de páginas */
+  .page-item,
+  .sidebar-new-btn {
+    min-height: 40px;
+  }
+
+  /* Editor ocupa a tela inteira, com folga para o hambúrguer */
+  .editor-area {
+    width: 100vw;
+  }
+}
+
+/* ── Mobile: topbar do editor ── */
+@media (max-width: 768px) {
+  /* No desktop os botões são absolutos sobre o topbar; em tela estreita
+     eles cobriam o final de títulos longos. No mobile viram uma segunda
+     linha abaixo do título, alinhada à direita. */
+  .topbar-actions,
+  .app-shell.focus-mode .topbar-actions {
+    position: static;
+    justify-content: flex-end;
+    padding: 2px 8px 0 0;
+  }
+
+  /* Touch targets maiores nas ações do topo */
+  .topbar-action-btn {
+    width: 38px;
+    height: 38px;
+    opacity: 0.8;
+  }
+
+  /* Título não fica embaixo do botão hambúrguer flutuante;
+     à direita não precisa mais reservar espaço para botões */
+  .page-title-input {
+    padding: 0 16px 0 58px;
+  }
+  .app-shell.focus-mode .page-title-input {
+    padding-left: 16px;
+  }
+
+  /* Voltar/avançar do histórico à direita do hambúrguer
+     (no desktop ambos ficam em left ~10px, sobrepostos no mobile) */
+  .nav-history-btns {
+    left: 62px;
+    top: 14px;
+  }
+  .app-shell.focus-mode .nav-history-btns {
+    left: 14px;
+  }
+
+  /* Sem hover no touch: ações do item (favorito, add, lixeira) sempre visíveis */
+  .page-item-actions {
+    display: flex;
+  }
+
+  /* O CSS desktop tem touch-action:none nos itens (pro drag com mouse), o que
+     proíbe o navegador de iniciar scroll a partir deles — no touch isso
+     deixava o drawer quase inescrolável. pan-y libera a rolagem vertical;
+     o drag por long-press bloqueia o scroll via preventDefault quando ativa. */
+  .page-item-row {
+    touch-action: pan-y;
+  }
+
+  /* O drawer inteiro rola como uma coisa só (no desktop apenas a árvore
+     de páginas tem scroll próprio e o resto é fixo). flex: 1 0 auto — a
+     árvore cresce para empurrar daily/lixeira/footer para o fim quando há
+     pouco conteúdo, mas pode passar da tela (aí o drawer todo rola). */
+  .sidebar {
+    overflow-y: auto;
+  }
+  .page-tree {
+    flex: 1 0 auto;
+    overflow-y: visible;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Sync por rede local — modal
+   ═══════════════════════════════════════════════════════════════ */
+.sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sync-modal {
+  width: min(400px, calc(100vw - 32px));
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.sync-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--sidebar-text-active);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sync-close-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text);
+  cursor: pointer;
+}
+.sync-close-btn:hover { background: var(--sidebar-hover); }
+
+.sync-modal-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--accent, #9480f5);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.sync-toggle-btn:disabled { opacity: 0.55; cursor: default; }
+.sync-toggle-btn.running {
+  background: transparent;
+  color: var(--sidebar-text-active);
+}
+
+/* IP em destaque — o usuário digita isso no celular */
+.sync-address {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--sidebar-text-active);
+  background: var(--sidebar-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 20px;
+  user-select: all;
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-qr {
+  width: 180px;
+  height: 180px;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+}
+
+.sync-hint {
+  font-size: 12.5px;
+  color: var(--sidebar-text);
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sync-hint-small {
+  font-size: 11px;
+  color: var(--sidebar-text);
+  opacity: 0.75;
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sync-address-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--editor-bg);
+  color: var(--editor-text);
+  font-size: 16px;
+  text-align: center;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.sync-address-input:focus { border-color: var(--accent, #9480f5); }
+
+.sync-success,
+.sync-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+.sync-success { color: #4ade80; }
+.sync-error { color: #f87171; }
+
+/* Botões direcionais do sync (baixar/enviar) */
+.sync-direction-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.sync-direction-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--sidebar-text-active);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.sync-direction-btn:disabled { opacity: 0.55; cursor: default; }
+.sync-direction-btn:hover:not(:disabled) { background: var(--sidebar-hover); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Home screen — tela inicial quando nenhuma página está aberta
+   ═══════════════════════════════════════════════════════════════ */
+.home-screen {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.home-content {
+  position: relative;
+  width: min(720px, 100%);
+  padding: 48px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Entrada em cascata */
+.home-header,
+.home-actions,
+.home-section,
+.home-empty-hint {
+  opacity: 0;
+  animation: home-rise 0.5s ease forwards;
+}
+.home-actions { animation-delay: 0.1s; }
+.home-section { animation-delay: 0.2s; }
+.home-empty-hint { animation-delay: 0.2s; }
+@keyframes home-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.home-date {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--sidebar-text);
+  text-transform: capitalize;
+}
+
+.home-greeting {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--editor-text);
+}
+
+/* Ações rápidas */
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-action {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 15px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  color: var(--editor-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
+}
+.home-action:hover {
+  background: var(--sidebar-hover);
+}
+
+.home-action-icon {
+  display: flex;
+  color: var(--sidebar-text);
+}
+
+.home-kbd {
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--sidebar-text);
+  background: transparent;
+  font-family: inherit;
+}
+
+/* Seções */
+.home-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sidebar-text);
+}
+
+/* Favoritas — chips horizontais */
+.home-fav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.home-fav-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--editor-text);
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s, border-color 0.12s;
+}
+.home-fav-chip:hover {
+  background: var(--sidebar-hover);
+}
+.home-fav-icon { display: flex; }
+
+/* Recentes — grid de cards */
+.home-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.home-recent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  color: var(--editor-text);
+  cursor: pointer;
+  text-align: left;
+  opacity: 0;
+  animation: home-rise 0.45s ease forwards;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
+}
+.home-recent-card:hover {
+  background: var(--sidebar-hover);
+}
+
+.home-recent-icon {
+  display: flex;
+  color: var(--sidebar-text);
+  font-size: 16px;
+}
+
+.home-recent-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-recent-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--sidebar-text);
+}
+
+.home-empty-hint {
+  font-size: 14px;
+  color: var(--sidebar-text);
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* Mobile: menos padding, saudação menor, espaço para o hambúrguer */
+@media (max-width: 768px) {
+  .home-content {
+    padding: 64px 18px 28px;
+    gap: 22px;
+  }
+  .home-greeting { font-size: 27px; }
+  .home-recent-grid { grid-template-columns: repeat(2, 1fr); }
+  .home-action { flex: 1 1 calc(50% - 5px); justify-content: center; }
+}

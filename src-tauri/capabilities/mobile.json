@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "mobile",
+  "description": "Capability for DocumentaAI on Android/iOS (sem updater, process e quick capture)",
+  "platforms": ["android", "iOS"],
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "sql:allow-execute",
+    "sql:allow-select",
+    "sql:allow-load"
+  ]
+}

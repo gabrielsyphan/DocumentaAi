@@ -15,6 +15,8 @@ interface Props {
 }
 
 const DRAG_THRESHOLD = 5;
+const LONG_PRESS_MS = 400;
+const TOUCH_SCROLL_THRESHOLD = 10;
 
 export default function PageItem({ page, depth }: Props) {
   const [confirming, setConfirming] = useState(false);
@@ -41,7 +43,51 @@ export default function PageItem({ page, depth }: Props) {
   }, [isOver, overPosition, expanded, page.id, expandPage]);
 
   function handlePointerDown(e: React.PointerEvent) {
-    if (e.button !== 0 || confirming) return;
+    if (confirming) return;
+
+    // ── Touch: long-press (400ms parado) inicia o drag; mover antes é scroll ──
+    if (e.pointerType === "touch") {
+      startPos.current = { x: e.clientX, y: e.clientY };
+      dragStarted.current = false;
+
+      // Bloqueia a rolagem do gesto atual quando o drag assume (precisa ser
+      // listener não-passivo; touch-action via CSS mataria o scroll sempre)
+      const blockScroll = (ev: TouchEvent) => ev.preventDefault();
+
+      const timer = setTimeout(() => {
+        dragStarted.current = true;
+        window.addEventListener("touchmove", blockScroll, { passive: false });
+        if ("vibrate" in navigator) navigator.vibrate(25);
+        startDrag(page.id);
+      }, LONG_PRESS_MS);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onEnd);
+        window.removeEventListener("pointercancel", onEnd);
+        window.removeEventListener("touchmove", blockScroll);
+        startPos.current = null;
+      };
+      const onMove = (e2: PointerEvent) => {
+        if (dragStarted.current || !startPos.current) return;
+        const dist = Math.hypot(
+          e2.clientX - startPos.current.x,
+          e2.clientY - startPos.current.y
+        );
+        // Movimento antes do long-press completar = scroll → cancela o drag
+        if (dist > TOUCH_SCROLL_THRESHOLD) cleanup();
+      };
+      const onEnd = () => cleanup();
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onEnd);
+      window.addEventListener("pointercancel", onEnd);
+      return;
+    }
+
+    // ── Mouse/caneta: arrasta após mover 5px (comportamento original) ──
+    if (e.button !== 0) return;
     startPos.current = { x: e.clientX, y: e.clientY };
     dragStarted.current = false;
 
@@ -108,6 +154,7 @@ export default function PageItem({ page, depth }: Props) {
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onPointerDown={handlePointerDown}
         onClick={() => !confirming && !dragStarted.current && selectPage(page.id)}
+        onContextMenu={(e) => e.preventDefault()}
       >
         {confirming ? (
           <>

@@ -1,5 +1,8 @@
 fn main() {
-    if cfg!(target_os = "macos") {
+    // cfg!(target_os) em build scripts avalia o HOST, não o alvo da compilação —
+    // ao cross-compilar para Android isso linkava frameworks Apple e quebrava o build.
+    // CARGO_CFG_TARGET_OS reflete o alvo real.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         println!("cargo:rustc-link-lib=framework=AVFoundation");
         println!("cargo:rustc-link-lib=framework=Speech");
 

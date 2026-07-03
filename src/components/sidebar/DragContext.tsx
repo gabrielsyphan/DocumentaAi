@@ -74,11 +74,23 @@ export function DragProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.style.cursor = "";
     }
 
+    // No touch, o sistema pode cancelar o gesto (pointercancel) — sem tratar,
+    // o drag ficaria preso com draggedId setado para sempre
+    function onCancel() {
+      draggedRef.current = null;
+      overIdRef.current = null;
+      setDraggedId(null);
+      setOverId(null);
+      document.documentElement.style.cursor = "";
+    }
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
       document.documentElement.style.cursor = "";
     };
   }, [draggedId, movePage]);
