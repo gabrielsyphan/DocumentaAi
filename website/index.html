@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocumentaAI — Sua documentação pessoal</title>
+  <meta name="description" content="Editor pessoal de notas e documentos offline-first. Pastas, canvas, captura rápida e muito mais. Sem assinatura, sem limite.">
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg: #111111;
+      --surface: #1a1a1a;
+      --surface2: #222222;
+      --border: #2a2a2a;
+      --text: #e8e8e6;
+      --muted: #787774;
+      --accent: #9480f5;
+      --accent-hover: #a993ff;
+      --accent-faint: rgba(148,128,245,0.12);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(17,17,17,0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(20px, 5vw, 60px);
+      animation: fadeIn 0.5s ease both;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--text); font-size: 15px; font-weight: 600; }
+    .nav-cta { display: inline-flex; align-items: center; gap: 7px; background: var(--accent); color: #fff; border: none; padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 0.15s, transform 0.15s; }
+    .nav-cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .nav-cta i { width: 14px; height: 14px; }
+
+    /* ── Hero ── */
+    .hero { text-align: center; padding: clamp(64px, 10vw, 110px) clamp(20px, 5vw, 60px) 72px; max-width: 860px; margin: 0 auto; }
+    .hero-tag { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--accent); border: 1px solid rgba(148,128,245,0.25); background: var(--accent-faint); padding: 5px 14px; border-radius: 20px; margin-bottom: 28px; animation: fadeUp 0.6s cubic-bezier(.22,1,.36,1) both 0.05s; }
+    .hero-tag i { width: 13px; height: 13px; }
+    .hero h1 { font-size: clamp(36px, 6.5vw, 64px); font-weight: 700; line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 24px; background: linear-gradient(140deg, #e8e8e6 40%, #9480f5 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1) both 0.18s; }
+    .hero p { font-size: clamp(16px, 2.5vw, 19px); color: var(--muted); max-width: 520px; margin: 0 auto 44px; animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1) both 0.32s; }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1) both 0.46s; }
+    .btn-hero { display: inline-flex; align-items: center; gap: 9px; padding: 13px 26px; border-radius: 10px; font-size: 15px; font-weight: 600; text-decoration: none; transition: all 0.18s cubic-bezier(.22,1,.36,1); border: none; cursor: pointer; }
+    .btn-hero i { width: 16px; height: 16px; }
+    .btn-hero-primary { background: var(--accent); color: #fff; position: relative; overflow: hidden; }
+    .btn-hero-primary::after { content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-20deg); animation: btnShimmer 3.5s ease-in-out infinite 1.5s; }
+    .btn-hero-primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(148,128,245,0.35); }
+    .btn-hero-ghost { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .btn-hero-ghost:hover { color: var(--text); border-color: #444; transform: translateY(-1px); }
+
+    /* ── Mock window ── */
+    .mock-wrap { max-width: 960px; margin: 0 auto 96px; padding: 0 clamp(20px, 5vw, 60px); }
+    .mock-window { background: #191919; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,0.55), 0 0 0 1px rgba(148,128,245,0.08); animation: float 7s ease-in-out infinite; position: relative; }
+    .mock-bar { background: #202020; padding: 11px 14px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid var(--border); }
+    .mock-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .mock-body { display: flex; height: 400px; }
+    .mock-sidebar { width: 220px; min-width: 220px; background: #202020; border-right: 1px solid var(--border); padding: 10px 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+    .mock-app-name { padding: 6px 14px 10px; font-size: 13px; font-weight: 700; color: #e8e8e6; }
+    .mock-item { padding: 5px 14px; font-size: 12.5px; color: #787774; display: flex; align-items: center; gap: 8px; transition: background 0.2s, color 0.2s; }
+    .mock-item.active { background: #2d2d2d; color: #e8e8e6; border-radius: 5px; margin: 0 6px; padding: 5px 8px; }
+    .mock-item.sub { padding-left: 28px; font-size: 12px; }
+    .mock-folder-chevron { font-size: 9px; color: #464543; display: inline-block; margin-right: 3px; transition: transform 0.22s ease; }
+    .mock-item.open .mock-folder-chevron { transform: rotate(90deg); }
+    .mock-folder-children { display: none; flex-direction: column; gap: 2px; }
+    .mock-folder-children.open { display: flex; animation: slideDown 0.28s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .mock-item i { width: 13px; height: 13px; flex-shrink: 0; }
+    .mock-sep { height: 1px; background: #2a2a2a; margin: 6px 0; }
+    .mock-section-label { padding: 4px 14px 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: #464543; text-transform: uppercase; }
+    .mock-editor { flex: 1; padding: 38px 48px; overflow: hidden; }
+    .mock-page-title { font-size: 26px; font-weight: 700; color: #e8e8e6; margin-bottom: 8px; letter-spacing: -0.02em; transition: opacity 0.3s; }
+    .mock-tags { display: flex; gap: 6px; margin-bottom: 20px; }
+    .mock-tag { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+    .mock-line { height: 13px; background: #2a2a2a; border-radius: 3px; margin-bottom: 9px; }
+    .mock-code { background: #141414; border: 1px solid #252525; border-radius: 8px; padding: 14px 16px; margin-top: 18px; }
+    .mock-code-line { font-family: "SF Mono", "Fira Mono", monospace; font-size: 11.5px; color: #464543; margin-bottom: 5px; }
+    .kw { color: #9480f5; } .st { color: #3dc9a7; } .cm { color: #383634; }
+    /* Checklist */
+    .mock-bullets { display: flex; flex-direction: column; gap: 8px; padding: 2px 0; margin-top: 6px; }
+    .mock-bullet-item { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #787774; }
+    .mock-cb { width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid #383634; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .mock-cb.done { background: rgba(148,128,245,0.22); border-color: rgba(148,128,245,0.45); }
+    .mock-cb.done::after { content: '✓'; font-size: 8px; color: #9480f5; line-height: 1; }
+    .mock-bullet-item.done > span { color: #464543; text-decoration: line-through; }
+    /* Table */
+    .mock-table { border: 1px solid #252525; border-radius: 7px; overflow: hidden; margin-top: 6px; }
+    .mock-tr { display: flex; }
+    .mock-tr + .mock-tr { border-top: 1px solid #252525; }
+    .mock-tr.th { background: #181818; }
+    .mock-tr.th .mock-td { color: #464543; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; }
+    .mock-td { padding: 5px 9px; font-size: 11.5px; color: #787774; flex: 1; }
+    .mock-td:not(:last-child) { border-right: 1px solid #252525; }
+    .s-ok  { color: #4ade80; } .s-wip { color: #60a5fa; } .s-no { color: #f87171; }
+    .mock-daily-dot { font-size: 8px; color: #9480f5; }
+    .mock-today-badge { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(148,128,245,0.15); color: #9480f5; font-weight: 600; }
+    .mock-folder-icon { color: #9480f5; }
+
+    /* Typing area inside mock */
+    .mock-typing-row { display: flex; align-items: center; height: 13px; margin-bottom: 9px; }
+    .mock-typed { font-size: 12px; color: #9480f5; font-family: "SF Mono","Fira Mono",monospace; }
+    .mock-type-cursor { width: 2px; height: 13px; background: var(--accent); margin-left: 2px; border-radius: 1px; animation: cursorBlink 0.8s ease-in-out infinite; flex-shrink: 0; }
+
+    /* Fake mouse cursor inside mock */
+    .mock-cursor {
+      position: absolute;
+      top: 160px; left: 40px;
+      pointer-events: none;
+      z-index: 20;
+      transition: top 0.55s cubic-bezier(.4,0,.2,1), left 0.55s cubic-bezier(.4,0,.2,1);
+    }
+    .mock-cursor svg { width: 18px; height: 22px; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.7)); }
+    .mock-cursor-ripple {
+      position: absolute;
+      top: -5px; left: -5px;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(148,128,245,0.75);
+      opacity: 0;
+      transform: scale(0.4);
+      transition: opacity 0.15s, transform 0.45s cubic-bezier(.22,1,.36,1);
+    }
+    .mock-cursor.clicking .mock-cursor-ripple { opacity: 1; transform: scale(2); }
+
+    /* ── Features ── */
+    .features { max-width: 960px; margin: 0 auto 96px; padding: clamp(60px, 8vw, 90px) clamp(20px, 5vw, 60px) 0; }
+    .section-eyebrow { text-align: center; font-size: 11.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    .section-heading { text-align: center; font-size: clamp(24px, 4vw, 38px); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 52px; }
+    .feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+    .feat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s; }
+    .feat-card:hover { border-color: rgba(148,128,245,0.45); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(148,128,245,0.13), 0 0 0 1px rgba(148,128,245,0.08); }
+    .feat-icon { width: 44px; height: 44px; background: var(--accent-faint); border-radius: 11px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; color: var(--accent); transition: transform 0.3s cubic-bezier(.22,1,.36,1), background 0.25s; }
+    .feat-card:hover .feat-icon { transform: scale(1.12); background: rgba(148,128,245,0.2); }
+    .feat-icon i { width: 20px; height: 20px; }
+    .feat-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 7px; display: flex; align-items: center; flex-wrap: wrap; }
+    .feat-card p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+    .feat-new { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--accent-faint); color: var(--accent); border: 1px solid rgba(148,128,245,0.3); padding: 1px 6px; border-radius: 20px; margin-left: 7px; vertical-align: middle; line-height: 1.6; }
+
+    /* ── Download ── */
+    .download-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: clamp(60px, 8vw, 90px) clamp(20px, 5vw, 60px); text-align: center; }
+    .download-section h2 { font-size: clamp(24px, 4vw, 38px); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 10px; }
+    .download-section > p { color: var(--muted); margin-bottom: 48px; font-size: 14px; min-height: 20px; }
+    .dl-grid { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+    .dl-card { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 28px 32px; min-width: 175px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: all 0.2s cubic-bezier(.22,1,.36,1); }
+    .dl-card.live { border-color: rgba(148,128,245,0.3); cursor: pointer; }
+    .dl-card.live:hover { border-color: var(--accent); transform: translateY(-4px) scale(1.02); box-shadow: 0 16px 48px rgba(148,128,245,0.22), 0 0 0 1px rgba(148,128,245,0.15); }
+    .dl-card.live:active { transform: translateY(-1px) scale(0.99); }
+    .dl-badge { position: absolute; top: -10px; right: -10px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
+    .dl-os-icon { width: 36px; height: 36px; color: var(--muted); }
+    .dl-os-icon i { width: 36px; height: 36px; }
+    .dl-os-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .dl-os-sub { font-size: 11.5px; color: var(--muted); }
+    .dl-spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(148,128,245,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .dl-card.downloading .dl-os-icon { display: none; }
+    .dl-card.downloading .dl-spinner { display: block; }
+    .dl-card.downloading .dl-os-name { color: var(--accent); }
+    .dl-card.downloading .dl-os-sub { color: var(--accent); opacity: 0.7; }
+
+    /* ── Install guide ── */
+    .guide-section { max-width: 860px; margin: 0 auto; padding: clamp(60px, 8vw, 90px) clamp(20px, 5vw, 60px); }
+    .guide-tabs { display: flex; gap: 6px; justify-content: center; margin-bottom: 32px; flex-wrap: wrap; }
+    .guide-tab { padding: 7px 20px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+    .guide-tab i { width: 14px; height: 14px; }
+    .guide-tab:hover { color: var(--text); border-color: #444; }
+    .guide-tab.active { background: var(--accent-faint); color: var(--accent); border-color: rgba(148,128,245,0.4); }
+    .guide-panel { display: none; }
+    .guide-panel.active { display: block; animation: fadeUp 0.3s cubic-bezier(.22,1,.36,1) both; }
+    .guide-steps { display: flex; flex-direction: column; gap: 14px; max-width: 600px; margin: 0 auto; }
+    .guide-step { display: flex; gap: 16px; align-items: flex-start; }
+    .guide-step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-faint); color: var(--accent); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .guide-step-body { flex: 1; }
+    .guide-step-body p { font-size: 14px; color: var(--text); line-height: 1.55; }
+    .guide-step-body code { font-family: "SF Mono", "Fira Mono", monospace; font-size: 12.5px; background: var(--surface2); color: var(--accent); padding: 2px 7px; border-radius: 5px; display: inline-block; margin-top: 6px; user-select: all; }
+    .guide-warn { display: flex; align-items: flex-start; gap: 8px; margin-top: 20px; padding: 11px 14px; background: rgba(148,128,245,0.07); border: 1px solid rgba(148,128,245,0.2); border-radius: 8px; font-size: 12.5px; color: var(--muted); max-width: 600px; margin-left: auto; margin-right: auto; }
+    .guide-warn i { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+
+    /* ── Footer ── */
+    footer { padding: 28px clamp(20px, 5vw, 60px); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--border); }
+    footer p { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    footer i { width: 13px; height: 13px; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { color: var(--accent-hover); }
+
+    /* ── MCP / AI Section ── */
+    .mcp-section { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: clamp(60px, 8vw, 90px) clamp(20px, 5vw, 60px); background: linear-gradient(135deg, rgba(148,128,245,0.05) 0%, transparent 55%); }
+    .mcp-inner { max-width: 680px; margin: 0 auto; text-align: center; }
+    .mcp-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--accent); background: var(--accent-faint); border: 1px solid rgba(148,128,245,0.25); padding: 4px 12px; border-radius: 20px; margin-bottom: 16px; }
+    .mcp-eyebrow i { width: 13px; height: 13px; }
+    .mcp-inner h2 { font-size: clamp(22px, 3.5vw, 34px); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 14px; }
+    .mcp-inner > p { font-size: 15px; color: var(--muted); line-height: 1.7; margin-bottom: 32px; }
+    .mcp-url-box { display: flex; align-items: stretch; background: var(--surface); border: 1px solid rgba(148,128,245,0.3); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+    .mcp-url-text { flex: 1; padding: 13px 16px; font-family: "SF Mono", "Fira Mono", monospace; font-size: 13px; color: var(--accent); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: all; }
+    .mcp-url-copy { padding: 0 20px; background: var(--accent-faint); border: none; border-left: 1px solid rgba(148,128,245,0.2); color: var(--accent); font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s; display: flex; align-items: center; gap: 6px; }
+    .mcp-url-copy:hover { background: rgba(148,128,245,0.2); }
+    .mcp-url-copy i { width: 13px; height: 13px; }
+    .mcp-example { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; text-align: left; margin-bottom: 28px; }
+    .mcp-example i { width: 15px; height: 15px; color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+    .mcp-example-label { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .mcp-example-text { font-size: 13.5px; color: var(--text); font-style: italic; line-height: 1.5; }
+    .mcp-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .mcp-tools-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .tool-chip { font-size: 12px; font-weight: 500; color: var(--text); background: var(--surface2); border: 1px solid var(--border); padding: 4px 12px; border-radius: 20px; }
+
+    /* ── Open Source Section ── */
+    .oss-section { max-width: 960px; margin: 0 auto 72px; padding: 0 clamp(20px, 5vw, 60px); }
+    .oss-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px 32px; display: flex; align-items: center; gap: 24px; transition: border-color 0.2s, box-shadow 0.2s; }
+    .oss-card:hover { border-color: rgba(148,128,245,0.3); box-shadow: 0 8px 32px rgba(148,128,245,0.08); }
+    .oss-icon-wrap { width: 52px; height: 52px; background: var(--surface2); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text); }
+    .oss-icon-wrap i { width: 24px; height: 24px; }
+    .oss-text { flex: 1; }
+    .oss-text h3 { font-size: 17px; font-weight: 600; margin-bottom: 5px; }
+    .oss-text p { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+    .oss-stars { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+    .oss-stars i { width: 12px; height: 12px; color: #f59e0b; }
+    .btn-github { display: inline-flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 13.5px; font-weight: 500; padding: 10px 20px; border-radius: 9px; text-decoration: none; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; align-self: center; }
+    .btn-github:hover { border-color: #555; background: #2a2a2a; transform: translateY(-1px); }
+    .btn-github i { width: 15px; height: 15px; }
+    @media (max-width: 600px) { .oss-card { flex-wrap: wrap; } .btn-github { width: 100%; justify-content: center; } }
+
+    /* ── Mobile preview ── */
+    .mobile-preview { display: none; padding: 0 20px 56px; }
+    .mp-window { background: #191919; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(148,128,245,0.08); }
+    .mp-bar { background: #202020; padding: 11px 14px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid var(--border); }
+    .mp-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+    .mp-bar-title { font-size: 12px; color: var(--muted); margin-left: 6px; }
+    .mp-body { padding: 28px 24px 24px; }
+    .mp-page-title { font-size: 22px; font-weight: 700; color: #e8e8e6; letter-spacing: -0.02em; margin-bottom: 10px; transition: opacity 0.18s ease; }
+    .mp-tags { display: flex; gap: 6px; margin-bottom: 18px; min-height: 22px; }
+    .mp-tag { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+    .mp-typing-row { display: flex; align-items: center; min-height: 18px; margin-bottom: 14px; }
+    .mp-typed { font-size: 12.5px; color: #9480f5; font-family: "SF Mono","Fira Mono",monospace; }
+    .mp-type-cursor { width: 2px; height: 14px; background: var(--accent); margin-left: 2px; border-radius: 1px; animation: cursorBlink 0.8s ease-in-out infinite; flex-shrink: 0; }
+    .mp-line { height: 12px; background: #252525; border-radius: 3px; margin-bottom: 9px; }
+    .mp-pills { display: flex; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .mp-pills::-webkit-scrollbar { display: none; }
+    .mp-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); padding: 5px 11px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+    .mp-pill i { width: 12px; height: 12px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .mock-wrap { display: none; }
+      .mobile-preview { display: block; }
+      .feat-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      .dl-grid { flex-direction: column; align-items: center; }
+      .dl-card { width: 100%; max-width: 320px; min-width: unset; flex-direction: row; padding: 18px 24px; gap: 14px; }
+      .dl-card .dl-os-icon { width: 28px; height: 28px; }
+      .dl-card .dl-os-icon i { width: 28px; height: 28px; }
+      .dl-badge { top: -8px; right: -8px; }
+    }
+    @media (max-width: 480px) {
+      .hero { padding: 48px 20px 52px; }
+      .hero-btns { flex-direction: column; align-items: stretch; }
+      .btn-hero { justify-content: center; }
+      .feat-grid { grid-template-columns: 1fr; gap: 12px; }
+      .feat-card { padding: 20px; }
+      .features { padding: 48px 20px; margin-bottom: 56px; }
+      .guide-section { padding: 48px 20px; }
+      .download-section { padding: 48px 20px; }
+      .dl-card { flex-direction: column; text-align: center; align-items: center; }
+      .guide-steps { gap: 10px; }
+      footer { flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+      .section-heading { margin-bottom: 32px; }
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes float   { 0%, 100% { transform: translateY(0px) rotate(0deg); } 33% { transform: translateY(-8px) rotate(0.3deg); } 66% { transform: translateY(-4px) rotate(-0.2deg); } }
+    @keyframes btnShimmer { 0%, 100% { left: -100%; } 40%, 60% { left: 140%; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes cursorBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+    /* Scroll reveal */
+    .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .feat-card.visible:nth-child(1)  { transition-delay:   0ms; }
+    .feat-card.visible:nth-child(2)  { transition-delay:  60ms; }
+    .feat-card.visible:nth-child(3)  { transition-delay: 120ms; }
+    .feat-card.visible:nth-child(4)  { transition-delay: 180ms; }
+    .feat-card.visible:nth-child(5)  { transition-delay: 240ms; }
+    .feat-card.visible:nth-child(6)  { transition-delay: 300ms; }
+    .feat-card.visible:nth-child(7)  { transition-delay: 360ms; }
+    .feat-card.visible:nth-child(8)  { transition-delay: 420ms; }
+    .feat-card.visible:nth-child(9)  { transition-delay: 480ms; }
+    .feat-card.visible:nth-child(10) { transition-delay: 540ms; }
+    .feat-card.visible:nth-child(11) { transition-delay: 600ms; }
+    .feat-card.visible:nth-child(12) { transition-delay: 660ms; }
+    .dl-card.visible:nth-child(1) { transition-delay:   0ms; }
+    .dl-card.visible:nth-child(2) { transition-delay:  80ms; }
+    .dl-card.visible:nth-child(3) { transition-delay: 160ms; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="#">
+    <img src="/logo.svg" alt="DocumentaAI" style="width:28px;height:28px;border-radius:6px;flex-shrink:0;">
+    DocumentaAI
+  </a>
+  <a class="nav-cta" href="#download">
+    <i data-lucide="download"></i>
+    Download grátis
+  </a>
+</nav>
+
+<section class="hero">
+  <div class="hero-tag">
+    <i data-lucide="wifi-off"></i>
+    Offline-first &nbsp;·&nbsp; Desktop-first &nbsp;·&nbsp; Gratuito
+  </div>
+  <h1>Capture suas ideias.<br>Organize seu mundo.</h1>
+  <p>Editor pessoal de notas e documentos — sem assinatura, sem limitação.<br>Tudo salvo localmente no seu computador.</p>
+  <div class="hero-btns">
+    <a class="btn-hero btn-hero-primary" href="#download">
+      <i data-lucide="download"></i>
+      Baixar grátis
+    </a>
+    <a class="btn-hero btn-hero-ghost" href="#features">
+      Ver funcionalidades
+      <i data-lucide="arrow-right"></i>
+    </a>
+  </div>
+</section>
+
+<div class="mock-wrap reveal">
+  <div class="mock-window">
+    <div class="mock-bar">
+      <div class="mock-dot" style="background:#ff5f57"></div>
+      <div class="mock-dot" style="background:#febc2e"></div>
+      <div class="mock-dot" style="background:#28c840"></div>
+    </div>
+    <div class="mock-body">
+      <div class="mock-sidebar">
+        <div class="mock-app-name">DocumentaAI</div>
+        <div class="mock-item">
+          <i data-lucide="search"></i> Buscar
+          <span style="margin-left:auto;font-size:10px;color:#464543">⌘K</span>
+        </div>
+        <div class="mock-item" style="color:#9480f5">
+          <i data-lucide="plus"></i> Nova página
+          <span style="margin-left:auto;font-size:10px;color:#464543">⌘N</span>
+        </div>
+        <div class="mock-sep"></div>
+        <div class="mock-section-label">Daily Notes</div>
+        <div class="mock-item active" id="mock-item-daily">
+          <span class="mock-daily-dot">●</span> 2026-07-01
+          <span class="mock-today-badge">hoje</span>
+        </div>
+        <div class="mock-item" id="mock-item-daily-prev">
+          <span class="mock-daily-dot" style="color:#464543">○</span> 2026-06-30
+        </div>
+        <div class="mock-sep"></div>
+        <div class="mock-section-label">Páginas</div>
+        <div class="mock-item" id="mock-item-reuniao">
+          <i data-lucide="file-text"></i> Reunião semanal
+        </div>
+        <div class="mock-item mock-folder-icon" id="mock-item-projetos">
+          <span class="mock-folder-chevron" id="mock-projetos-chevron">›</span>
+          <i data-lucide="folder"></i> Projetos
+        </div>
+        <div class="mock-folder-children" id="mock-projetos-children">
+          <div class="mock-item sub" id="mock-item-documentaai">
+            <i data-lucide="file-text"></i> DocumentaAI
+          </div>
+          <div class="mock-item sub">
+            <i data-lucide="pen-tool"></i> Arquitetura
+          </div>
+        </div>
+      </div>
+      <div class="mock-editor">
+        <div class="mock-page-title" id="mock-editor-title">Daily — 2026-07-01</div>
+        <div class="mock-tags" id="mock-tags">
+          <span class="mock-tag" style="color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3)">diário</span>
+          <span class="mock-tag" style="color:#60a5fa;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3)">tauri</span>
+        </div>
+        <div class="mock-typing-row">
+          <span class="mock-typed" id="mock-typed"></span>
+          <span class="mock-type-cursor"></span>
+        </div>
+        <div class="mock-line" style="width:87%"></div>
+        <div class="mock-line" style="width:72%"></div>
+        <div id="mock-content-block">
+          <div class="mock-bullets">
+            <div class="mock-bullet-item done"><div class="mock-cb done"></div><span>Revisar PRs pendentes</span></div>
+            <div class="mock-bullet-item done"><div class="mock-cb done"></div><span>Atualizar docs do projeto</span></div>
+            <div class="mock-bullet-item"><div class="mock-cb"></div><span>Reunião com equipe às 14h</span></div>
+            <div class="mock-bullet-item"><div class="mock-cb"></div><span>Deploy v0.3.9</span></div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <div class="mock-line" style="width:58%"></div>
+          <div class="mock-line" style="width:44%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fake mouse cursor -->
+    <div class="mock-cursor" id="mock-cursor" style="top:209px;left:38px">
+      <svg viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 1L1 18L5.5 13.5L8.5 20.5L11 19.5L8 12.5L13.5 12.5L1 1Z"
+              fill="white" stroke="rgba(0,0,0,0.55)" stroke-width="1.2" stroke-linejoin="round"/>
+      </svg>
+      <div class="mock-cursor-ripple"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile-only preview (substituí o mock no desktop) -->
+<div class="mobile-preview reveal">
+  <div class="mp-window">
+    <div class="mp-bar">
+      <div class="mp-dot" style="background:#ff5f57"></div>
+      <div class="mp-dot" style="background:#febc2e"></div>
+      <div class="mp-dot" style="background:#28c840"></div>
+      <span class="mp-bar-title">DocumentaAI</span>
+    </div>
+    <div class="mp-body">
+      <div class="mp-page-title" id="mp-page-title">Daily — 2026-07-01</div>
+      <div class="mp-tags" id="mp-tags">
+        <span class="mp-tag" style="color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3)">diário</span>
+        <span class="mp-tag" style="color:#60a5fa;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3)">tauri</span>
+      </div>
+      <div class="mp-typing-row">
+        <span id="mp-typed"></span>
+        <span class="mp-type-cursor"></span>
+      </div>
+      <div class="mp-line" style="width:88%"></div>
+      <div class="mp-line" style="width:71%"></div>
+      <div class="mp-line" style="width:60%"></div>
+      <div class="mp-pills">
+        <span class="mp-pill"><i data-lucide="calendar-days"></i> Daily Notes</span>
+        <span class="mp-pill"><i data-lucide="zap"></i> Quick Capture</span>
+        <span class="mp-pill"><i data-lucide="pen-tool"></i> Canvas</span>
+        <span class="mp-pill"><i data-lucide="wifi-off"></i> Offline</span>
+        <span class="mp-pill"><i data-lucide="bot"></i> MCP</span>
+        <span class="mp-pill"><i data-lucide="history"></i> Histórico</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="mcp-section reveal">
+  <div class="mcp-inner">
+    <div class="mcp-eyebrow"><i data-lucide="bot"></i> IA Nativa</div>
+    <h2>Conecte sua IA ao DocumentaAI</h2>
+    <p>Temos um servidor MCP integrado. Em vez de seguir um tutorial, passe este link para o Claude Code, Cursor ou Kiro — sua IA lê as instruções e configura tudo automaticamente.</p>
+    <div class="mcp-url-box">
+      <span class="mcp-url-text">documentaai.rovanly.com/setup-mcp.md</span>
+      <button class="mcp-url-copy" onclick="copyMcpUrl(this)">
+        <i data-lucide="copy"></i> Copiar
+      </button>
+    </div>
+    <div class="mcp-example">
+      <i data-lucide="message-square"></i>
+      <div>
+        <div class="mcp-example-label">Exemplo de prompt</div>
+        <div class="mcp-example-text">"Leia https://documentaai.rovanly.com/setup-mcp.md e configure o MCP do DocumentaAI para mim."</div>
+      </div>
+    </div>
+    <div class="mcp-tools">
+      <span class="mcp-tools-label">Compatível com</span>
+      <span class="tool-chip">Claude Code</span>
+      <span class="tool-chip">Cursor</span>
+      <span class="tool-chip">Kiro</span>
+      <span class="tool-chip">VS Code</span>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="section-eyebrow reveal">Funcionalidades</div>
+  <h2 class="section-heading reveal">Tudo que você precisa,<br>nada que você não precisa</h2>
+  <div class="feat-grid">
+    <div class="feat-card reveal"><div class="feat-icon"><i data-lucide="layout-list"></i></div><h3>Editor de blocos</h3><p>Títulos, listas, tabelas, imagens e code blocks com syntax highlighting para 20+ linguagens — tudo no estilo Notion.</p></div>
+    <div class="feat-card reveal"><div class="feat-icon"><i data-lucide="wifi-off"></i></div><h3>100% offline</h3><p>Tudo salvo localmente em SQLite. Funciona sem internet, sem servidor e sem conta. Seus dados ficam na sua máquina.</p></div>
+    <div class="feat-card reveal"><div class="feat-icon"><i data-lucide="calendar-days"></i></div><h3>Daily Notes</h3><p>Capture o dia com um clique. Cada data vira uma nota própria, separada das páginas e acessível em segundos.</p></div>
+    <div class="feat-card reveal"><div class="feat-icon"><i data-lucide="zap"></i></div><h3>Quick Capture <span class="feat-new">Novo</span></h3><p>Atalho global ⌘⇧Space abre uma janela flutuante para capturar ideias sem interromper o que você está fazendo.</p></div>
+    <div class="feat-card reveal"><div class="feat-icon"><i data-lucide="pen-tool"></i></div><h3>Canvas / Whiteboard</h3><p>Crie páginas de desenho livre com Excalidraw integrado. Ideal para diagramas, fluxos e rascunhos visuais.</p></div>
+    <div class="feat-card reveal"><div class="feat-icon"><i data-lucide="history"></i></div><h3>Histórico de versões</h3><p>Snapshots automáticos a cada 15 segundos. Restaure qualquer versão anterior com um clique — sem perder nada.</p></div>
+  </div>
+</section>
+
+<section class="oss-section reveal">
+  <div class="oss-card">
+    <div class="oss-icon-wrap">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+    </div>
+    <div class="oss-text">
+      <h3>Open Source</h3>
+      <p>Código 100% aberto. Fork, contribua ou adapte como quiser — o projeto é da comunidade.</p>
+      <div class="oss-stars" id="oss-stars" style="display:none">
+        <i data-lucide="star"></i>
+        <span id="oss-star-count"></span> estrelas no GitHub
+      </div>
+    </div>
+    <a href="https://github.com/gabrielsyphan/documentaai" target="_blank" rel="noopener" class="btn-github">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+      Ver no GitHub
+    </a>
+  </div>
+</section>
+
+<section class="download-section" id="download">
+  <div class="section-eyebrow reveal">Download Gratuito</div>
+  <h2 class="reveal">Escolha o seu sistema</h2>
+  <p id="dl-subtitle" class="reveal">Carregando versão mais recente…</p>
+  <div class="dl-grid" id="dl-grid">
+    <a class="dl-card live reveal" id="dl-mac" href="https://github.com/gabrielsyphan/documentaai/releases/latest">
+      <span class="dl-badge">Disponível</span>
+      <span class="dl-spinner"></span>
+      <span class="dl-os-icon"><i data-lucide="laptop"></i></span>
+      <span class="dl-os-name">macOS</span>
+      <span class="dl-os-sub">Apple Silicon · DMG</span>
+    </a>
+    <a class="dl-card live reveal" id="dl-win" href="https://github.com/gabrielsyphan/documentaai/releases/latest">
+      <span class="dl-badge">Disponível</span>
+      <span class="dl-spinner"></span>
+      <span class="dl-os-icon"><i data-lucide="monitor"></i></span>
+      <span class="dl-os-name">Windows</span>
+      <span class="dl-os-sub">x64 · Installer</span>
+    </a>
+    <a class="dl-card live reveal" id="dl-linux" href="https://github.com/gabrielsyphan/documentaai/releases/latest">
+      <span class="dl-badge">Disponível</span>
+      <span class="dl-spinner"></span>
+      <span class="dl-os-icon"><i data-lucide="terminal"></i></span>
+      <span class="dl-os-name">Linux</span>
+      <span class="dl-os-sub">x64 · AppImage</span>
+    </a>
+  </div>
+</section>
+
+<section class="guide-section" id="guide">
+  <div class="section-eyebrow reveal">Como instalar</div>
+  <h2 class="section-heading reveal">Primeiros passos</h2>
+  <div class="guide-tabs reveal">
+    <button class="guide-tab active" onclick="switchTab(event,'macos')"><i data-lucide="laptop"></i> macOS</button>
+    <button class="guide-tab" onclick="switchTab(event,'windows')"><i data-lucide="monitor"></i> Windows</button>
+    <button class="guide-tab" onclick="switchTab(event,'linux')"><i data-lucide="terminal"></i> Linux</button>
+  </div>
+  <div class="guide-panel active" id="panel-macos">
+    <div class="guide-steps">
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-body"><p>Baixe o arquivo <strong>documentaai-macos.dmg</strong>.</p></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-body"><p>Abra o <strong>Terminal</strong> e monte o DMG:</p><code>hdiutil attach ~/Downloads/documentaai-macos.dmg</code></div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-body"><p>Copie o app para Aplicativos:</p><code>cp -r /Volumes/DocumentaAI/DocumentaAI.app /Applications/</code></div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-body"><p>Assine localmente e remova a quarentena:</p><code>codesign --force --deep --sign - /Applications/DocumentaAI.app</code><br><code style="margin-top:4px">xattr -cr /Applications/DocumentaAI.app</code></div></div>
+      <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-body"><p>Pronto — abra pelo Launchpad ou Finder.</p></div></div>
+    </div>
+    <div class="guide-warn"><i data-lucide="info"></i> Esses passos são necessários porque o app ainda não possui assinatura Apple Developer. Os comandos são seguros e apenas autorizam o app na sua máquina.</div>
+  </div>
+  <div class="guide-panel" id="panel-windows">
+    <div class="guide-steps">
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-body"><p>Baixe o arquivo <strong>documentaai-windows.exe</strong> e execute-o com dois cliques.</p></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-body"><p>Se aparecer o aviso do <strong>Windows Defender SmartScreen</strong>, clique em <strong>Mais informações</strong> → <strong>Executar assim mesmo</strong>.</p></div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-body"><p>Siga o instalador. O DocumentaAI estará disponível no menu Iniciar.</p></div></div>
+    </div>
+  </div>
+  <div class="guide-panel" id="panel-linux">
+    <div class="guide-steps">
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-body"><p>Baixe o arquivo <strong>documentaai-linux.AppImage</strong>.</p></div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-body"><p>Dê permissão de execução:</p><code>chmod +x documentaai-linux.AppImage</code></div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-body"><p>Execute:</p><code>./documentaai-linux.AppImage</code></div></div>
+    </div>
+    <div class="guide-warn"><i data-lucide="info"></i> Em algumas distros pode ser necessário instalar <strong>libfuse2</strong>: <code style="margin-top:0;background:var(--surface2);padding:1px 5px;border-radius:4px">sudo apt install libfuse2</code></div>
+  </div>
+</section>
+
+<footer>
+  <p><i data-lucide="copyright"></i> 2026 DocumentaAI — feito com Tauri + React</p>
+  <p><i data-lucide="globe"></i><a href="https://rovanly.com" target="_blank">rovanly.com</a></p>
+</footer>
+
+<script>
+const REPO = "gabrielsyphan/documentaai";
+
+/* ── Tab switching ── */
+function switchTab(e, platform) {
+  document.querySelectorAll('.guide-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.guide-panel').forEach(p => p.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  document.getElementById('panel-' + platform).classList.add('active');
+}
+
+/* ── Mock window animation ── */
+function initMockAnimation() {
+  const cursor   = document.getElementById('mock-cursor');
+  const typedEl  = document.getElementById('mock-typed');
+  const titleEl  = document.getElementById('mock-editor-title');
+  const tagsEl   = document.getElementById('mock-tags');
+  const codeEl   = document.getElementById('mock-content-block');
+  const items    = {
+    daily:       document.getElementById('mock-item-daily'),
+    reuniao:     document.getElementById('mock-item-reuniao'),
+    projetos:    document.getElementById('mock-item-projetos'),
+    documentaai: document.getElementById('mock-item-documentaai'),
+  };
+  const folderEl   = document.getElementById('mock-item-projetos');
+  const childrenEl = document.getElementById('mock-projetos-children');
+
+  // Posições Y a partir do topo do .mock-window (position:relative).
+  // bar=42 | sidebar padding-top=10 | app-name=37 | item=30 | sep=13 | label=22 | gap=2
+  // daily:       42+10+37+2+30+2+30+2+13+2+22+2+15 = 209
+  // reuniao:     após today(224)+2+yesterday(30)+2+sep(13)+2+label(22)+2+15 = 312
+  // projetos:    312+15+2+15 = 344
+  // documentaai: projetos_end(359)+2+15 = 376  (aparece só quando pasta aberta)
+  const POS = {
+    daily:         { top: 209, left: 38 },
+    reuniao:       { top: 312, left: 38 },
+    projetos:      { top: 344, left: 38 },
+    documentaai:   { top: 376, left: 44 },
+    editorContent: { top: 178, left: 260 },
+  };
+
+  const PAGES = {
+    daily: {
+      title: 'Daily — 2026-07-01',
+      tags:  '<span class="mock-tag" style="color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3)">diário</span><span class="mock-tag" style="color:#60a5fa;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3)">tauri</span>',
+      code:  '<div class="mock-bullets"><div class="mock-bullet-item done"><div class="mock-cb done"></div><span>Revisar PRs pendentes</span></div><div class="mock-bullet-item done"><div class="mock-cb done"></div><span>Atualizar docs do projeto</span></div><div class="mock-bullet-item"><div class="mock-cb"></div><span>Reunião com equipe às 14h</span></div><div class="mock-bullet-item"><div class="mock-cb"></div><span>Deploy v0.3.9</span></div></div>',
+      typeText: '● Reunião com equipe às 14h',
+    },
+    reuniao: {
+      title: 'Reunião semanal',
+      tags:  '<span class="mock-tag" style="color:#f97316;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3)">trabalho</span><span class="mock-tag" style="color:#e879f9;background:rgba(232,121,249,0.12);border:1px solid rgba(232,121,249,0.3)">reunião</span>',
+      code:  '<div class="mock-table"><div class="mock-tr th"><div class="mock-td">Pauta</div><div class="mock-td">Responsável</div><div class="mock-td">Status</div></div><div class="mock-tr"><div class="mock-td">Roadmap Q3</div><div class="mock-td">Lucas</div><div class="mock-td"><span class="s-ok">● concluído</span></div></div><div class="mock-tr"><div class="mock-td">Backlog review</div><div class="mock-td">Time</div><div class="mock-td"><span class="s-wip">● em andamento</span></div></div><div class="mock-tr"><div class="mock-td">Deploy prod</div><div class="mock-td">Lucas</div><div class="mock-td"><span class="s-no">● pendente</span></div></div></div>',
+      typeText: '- Definir roadmap Q3',
+    },
+    documentaai: {
+      title: 'DocumentaAI',
+      tags:  '<span class="mock-tag" style="color:#a855f7;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3)">dev</span><span class="mock-tag" style="color:#34d399;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3)">tauri</span>',
+      code:  '<div class="mock-code"><div class="mock-code-line"><span class="kw">const</span> app = <span class="kw">await</span> invoke(<span class="st">"get_pages"</span>)</div><div class="mock-code-line"><span class="cm">// Tauri v2 + React 19 + SQLite</span></div><div class="mock-code-line"><span class="kw">emit</span>(<span class="st">"page_updated"</span>, { id, content })</div></div>',
+      typeText: '## v0.3.9 — em produção',
+    },
+  };
+
+  function moveTo(pos) {
+    return new Promise(r => {
+      cursor.style.top  = pos.top  + 'px';
+      cursor.style.left = pos.left + 'px';
+      setTimeout(r, 620);
+    });
+  }
+
+  function click() {
+    return new Promise(r => {
+      cursor.classList.add('clicking');
+      setTimeout(() => { cursor.classList.remove('clicking'); r(); }, 420);
+    });
+  }
+
+  function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function setActive(key) {
+    Object.values(items).forEach(el => { if (el) el.classList.remove('active'); });
+    if (items[key]) items[key].classList.add('active');
+  }
+
+  function openFolder() {
+    folderEl.classList.add('open');
+    childrenEl.classList.add('open');
+  }
+
+  function closeFolder() {
+    folderEl.classList.remove('open');
+    childrenEl.classList.remove('open');
+    if (items.documentaai) items.documentaai.classList.remove('active');
+    if (items.projetos) items.projetos.classList.remove('active');
+  }
+
+  function setPageContent(key) {
+    const p = PAGES[key];
+    titleEl.textContent = p.title;
+    tagsEl.innerHTML    = p.tags;
+    codeEl.innerHTML    = p.code;
+    typedEl.textContent = '';
+  }
+
+  function typeText(text) {
+    return new Promise(r => {
+      let i = 0;
+      function next() {
+        if (i < text.length) { typedEl.textContent += text[i++]; setTimeout(next, 68); }
+        else r();
+      }
+      next();
+    });
+  }
+
+  function eraseText() {
+    return new Promise(r => {
+      function next() {
+        if (typedEl.textContent.length > 0) {
+          typedEl.textContent = typedEl.textContent.slice(0, -1);
+          setTimeout(next, 32);
+        } else r();
+      }
+      next();
+    });
+  }
+
+  async function loop() {
+    // === Daily note ===
+    await moveTo(POS.daily);
+    await click();
+    setActive('daily');
+    setPageContent('daily');
+    await pause(400);
+    await moveTo(POS.editorContent);
+    await pause(250);
+    await typeText(PAGES.daily.typeText);
+    await pause(1300);
+    await eraseText();
+    await pause(300);
+
+    // === Reuniao semanal ===
+    await moveTo(POS.reuniao);
+    await click();
+    setActive('reuniao');
+    setPageContent('reuniao');
+    await pause(400);
+    await moveTo(POS.editorContent);
+    await pause(250);
+    await typeText(PAGES.reuniao.typeText);
+    await pause(1300);
+    await eraseText();
+    await pause(300);
+
+    // === Projetos: clica na pasta para expandir (sem abrir como página) ===
+    await moveTo(POS.projetos);
+    await click();
+    setActive('projetos');
+    openFolder();
+    await pause(550); // aguarda animação slideDown
+
+    // === DocumentaAI: clica no sub-item, abre como página ===
+    await moveTo(POS.documentaai);
+    await click();
+    setActive('documentaai');
+    setPageContent('documentaai');
+    await pause(400);
+    await moveTo(POS.editorContent);
+    await pause(250);
+    await typeText(PAGES.documentaai.typeText);
+    await pause(1300);
+    await eraseText();
+    await pause(300);
+
+    // Fecha pasta antes de reiniciar o loop
+    closeFolder();
+    await pause(250);
+
+    loop();
+  }
+
+  setTimeout(loop, 1000);
+}
+
+/* ── Scroll reveal ── */
+function initScrollReveal() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.08, rootMargin: '0px 0px -32px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+/* ── Download feedback ── */
+function initDownloadFeedback() {
+  document.querySelectorAll('.dl-card.live').forEach(card => {
+    card.addEventListener('click', function() {
+      this.classList.add('downloading');
+      const nameEl = this.querySelector('.dl-os-name');
+      const subEl  = this.querySelector('.dl-os-sub');
+      const origName = nameEl.textContent, origSub = subEl.textContent;
+      nameEl.textContent = 'Iniciando…';
+      subEl.textContent  = 'aguarde';
+      setTimeout(() => {
+        this.classList.remove('downloading');
+        nameEl.textContent = origName;
+        subEl.textContent  = origSub;
+      }, 2000);
+    });
+  });
+}
+
+/* ── GitHub release ── */
+async function loadLatestRelease() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github+json' }
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const tag = data.tag_name;
+    const assets = data.assets || [];
+    document.getElementById('dl-subtitle').textContent = `Versão ${tag.replace('v','')} — gratuito para todos os sistemas.`;
+    const mac   = assets.find(a => a.name === 'documentaai-macos.dmg')   || assets.find(a => /aarch64.*\.dmg$/i.test(a.name));
+    const win   = assets.find(a => a.name === 'documentaai-windows.exe') || assets.find(a => /x64-setup\.exe$/i.test(a.name));
+    const linux = assets.find(a => a.name === 'documentaai-linux.AppImage') || assets.find(a => /amd64\.AppImage$/i.test(a.name) && !/\.sig$/.test(a.name));
+    if (mac)   document.getElementById('dl-mac').href   = mac.browser_download_url;
+    if (win)   document.getElementById('dl-win').href   = win.browser_download_url;
+    if (linux) document.getElementById('dl-linux').href = linux.browser_download_url;
+  } catch (_) {
+    document.getElementById('dl-subtitle').textContent = 'Baixe a versão mais recente no GitHub.';
+  }
+}
+
+/* ── Mobile preview animation ── */
+function initMobilePreview() {
+  if (window.innerWidth > 768) return;
+  const titleEl = document.getElementById('mp-page-title');
+  const tagsEl  = document.getElementById('mp-tags');
+  const typedEl = document.getElementById('mp-typed');
+  if (!titleEl) return;
+
+  const pages = [
+    {
+      title: 'Daily — 2026-07-01',
+      tags: '<span class="mp-tag" style="color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3)">diário</span><span class="mp-tag" style="color:#60a5fa;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3)">tauri</span>',
+      text: '● Reunião com equipe às 14h',
+    },
+    {
+      title: 'Reunião semanal',
+      tags: '<span class="mp-tag" style="color:#f97316;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3)">trabalho</span><span class="mp-tag" style="color:#e879f9;background:rgba(232,121,249,0.12);border:1px solid rgba(232,121,249,0.3)">reunião</span>',
+      text: '- Definir roadmap Q3',
+    },
+    {
+      title: 'DocumentaAI',
+      tags: '<span class="mp-tag" style="color:#a855f7;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3)">dev</span><span class="mp-tag" style="color:#34d399;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3)">tauri</span>',
+      text: '## v0.3.9 — em produção',
+    },
+  ];
+
+  let i = 0;
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+
+  function typeText(text) {
+    return new Promise(r => {
+      typedEl.textContent = '';
+      let j = 0;
+      (function tick() {
+        if (j < text.length) { typedEl.textContent += text[j++]; setTimeout(tick, 68); }
+        else r();
+      })();
+    });
+  }
+
+  function eraseText() {
+    return new Promise(r => {
+      (function tick() {
+        if (typedEl.textContent.length > 0) { typedEl.textContent = typedEl.textContent.slice(0, -1); setTimeout(tick, 32); }
+        else r();
+      })();
+    });
+  }
+
+  async function loop() {
+    const p = pages[i % pages.length];
+    titleEl.style.opacity = '0.3';
+    await pause(140);
+    titleEl.textContent = p.title;
+    tagsEl.innerHTML = p.tags;
+    titleEl.style.opacity = '1';
+    await pause(280);
+    await typeText(p.text);
+    await pause(1600);
+    await eraseText();
+    await pause(400);
+    i++;
+    loop();
+  }
+
+  setTimeout(loop, 900);
+}
+
+/* ── GitHub stars ── */
+async function loadGitHubStars() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}`, {
+      headers: { Accept: 'application/vnd.github+json' }
+    });
+    if (!res.ok) return;
+    const { stargazers_count } = await res.json();
+    if (stargazers_count !== undefined) {
+      document.getElementById('oss-star-count').textContent = stargazers_count.toLocaleString('pt-BR');
+      document.getElementById('oss-stars').style.display = 'flex';
+      lucide.createIcons(); // re-run so the star icon inside renders
+    }
+  } catch (_) {}
+}
+
+/* ── MCP URL copy ── */
+function copyMcpUrl(btn) {
+  navigator.clipboard.writeText('https://documentaai.rovanly.com/setup-mcp.md').then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i data-lucide="check"></i> Copiado!';
+    lucide.createIcons({ nodes: [btn] });
+    setTimeout(() => { btn.innerHTML = orig; lucide.createIcons({ nodes: [btn] }); }, 2200);
+  }).catch(() => {});
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  initMockAnimation();
+  initMobilePreview();
+  initScrollReveal();
+  initDownloadFeedback();
+  loadLatestRelease();
+  loadGitHubStars();
+});
+</script>
+</body>
+</html>

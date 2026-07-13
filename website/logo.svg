@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lg" x1="148" y1="136" x2="392" y2="376" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#b8aaff"/>
+    </linearGradient>
+  </defs>
+  <!-- Dark rounded square -->
+  <rect width="512" height="512" rx="108" fill="#111111"/>
+  <!-- D letterform -->
+  <path d="M 148 136 L 148 376 L 218 376 C 356 376 392 318 392 256 C 392 194 356 136 218 136 Z" fill="url(#lg)"/>
+</svg>
