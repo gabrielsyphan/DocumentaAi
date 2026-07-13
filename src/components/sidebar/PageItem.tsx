@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronRight, ChevronDown, Plus, Trash2, FileText, PenTool, Folder, FolderOpen, X, Check, Star, CalendarDays, LayoutGrid } from "lucide-react";
 import type { PageWithChildren } from "../../types";
 import { usePagesStore } from "../../store/pages.store";
@@ -20,6 +21,9 @@ const TOUCH_SCROLL_THRESHOLD = 10;
 
 export default function PageItem({ page, depth }: Props) {
   const [confirming, setConfirming] = useState(false);
+  // Posição do menu de tipo de subpágina (null = fechado). Renderizado em
+  // portal com position:fixed pra não ser cortado pelo scroll da árvore.
+  const [typeMenuPos, setTypeMenuPos] = useState<{ x: number; y: number } | null>(null);
   const { selectedPageId, selectPage, createPage, trashPage, toggleFavorite } = usePagesStore();
   const { expandedPages, collapsePage, expandPage } = useUIStore();
   const { draggedId, overId, overPosition, startDrag } = useDragCtx();
@@ -132,9 +136,35 @@ export default function PageItem({ page, depth }: Props) {
 
   function handleAddChild(e: React.MouseEvent) {
     e.stopPropagation();
-    expandPage(page.id);
-    createPage(page.id);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const MENU_WIDTH = 170;
+    setTypeMenuPos({
+      x: Math.min(rect.left, window.innerWidth - MENU_WIDTH - 8),
+      y: rect.bottom + 4,
+    });
   }
+
+  function createChild(type?: "canvas" | "folder" | "board") {
+    setTypeMenuPos(null);
+    expandPage(page.id);
+    if (!type) createPage(page.id);
+    else if (type === "canvas") createPage(page.id, { title: "Sem título", type: "canvas" });
+    else if (type === "folder") createPage(page.id, { title: "Nova pasta", type: "folder" });
+    else createPage(page.id, { title: "Novo board", type: "board" });
+  }
+
+  // Fecha o menu ao clicar fora ou apertar Esc
+  useEffect(() => {
+    if (!typeMenuPos) return;
+    const close = () => setTypeMenuPos(null);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [typeMenuPos]);
 
   const rowClass = [
     "page-item-row",
@@ -222,6 +252,29 @@ export default function PageItem({ page, depth }: Props) {
         page.children.map((child) => (
           <PageItem key={child.id} page={child} depth={depth + 1} />
         ))}
+
+      {typeMenuPos &&
+        createPortal(
+          <div
+            className="new-page-menu floating"
+            style={{ left: typeMenuPos.x, top: typeMenuPos.y }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button className="new-page-menu-item" onMouseDown={() => createChild()}>
+              <FileText size={13} /> Documento
+            </button>
+            <button className="new-page-menu-item" onMouseDown={() => createChild("canvas")}>
+              <PenTool size={13} /> Canvas
+            </button>
+            <button className="new-page-menu-item" onMouseDown={() => createChild("folder")}>
+              <Folder size={13} /> Pasta
+            </button>
+            <button className="new-page-menu-item" onMouseDown={() => createChild("board")}>
+              <LayoutGrid size={13} /> Board
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -901,6 +901,15 @@ html, body, #root {
   margin-left: auto;
 }
 
+/* variante flutuante (portal) — usada pelo + de subpágina na árvore */
+.new-page-menu.floating {
+  position: fixed;
+  left: auto;
+  right: auto;
+  width: 170px;
+  z-index: 1000;
+}
+
 /* container full-width apenas para o position:relative do botão de export */
 .editor-topbar {
   position: relative;
