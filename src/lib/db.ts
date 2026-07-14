@@ -125,28 +125,52 @@ export async function upsertPage(page: Page): Promise<void> {
   );
 }
 
+// CTE recursiva que coleta uma página e todos os seus descendentes ($id no placeholder indicado)
+const DESCENDANTS_CTE = `WITH RECURSIVE descendants(id) AS (
+  SELECT id FROM pages WHERE id = {P}
+  UNION ALL
+  SELECT p.id FROM pages p JOIN descendants d ON p.parent_id = d.id
+)`;
+
 export async function softDeletePage(id: string): Promise<void> {
   const database = await getDb();
   // updated_at também é atualizado para o sync LWW propagar a deleção
+  // Cascata: subpáginas ainda não deletadas recebem o mesmo deleted_at
+  // (o timestamp comum permite restaurar o grupo junto depois)
   const now = new Date().toISOString();
   await database.execute(
-    "UPDATE pages SET deleted_at = $1, updated_at = $1 WHERE id = $2",
+    `${DESCENDANTS_CTE.replace("{P}", "$2")}
+     UPDATE pages SET deleted_at = $1, updated_at = $1
+     WHERE id IN (SELECT id FROM descendants) AND deleted_at IS NULL`,
     [now, id]
   );
 }
 
 export async function restorePageFromTrash(id: string): Promise<void> {
   const database = await getDb();
+  const rows = await database.select<{ deleted_at: string | null }[]>(
+    "SELECT deleted_at FROM pages WHERE id = $1",
+    [id]
+  );
+  const deletedAt = rows[0]?.deleted_at ?? null;
   // updated_at também é atualizado para o sync LWW propagar a restauração
+  // Cascata: restaura junto os descendentes deletados na mesma operação
+  // (mesmo deleted_at); itens jogados no lixo separadamente ficam lá
   await database.execute(
-    "UPDATE pages SET deleted_at = NULL, updated_at = $1 WHERE id = $2",
-    [new Date().toISOString(), id]
+    `${DESCENDANTS_CTE.replace("{P}", "$2")}
+     UPDATE pages SET deleted_at = NULL, updated_at = $1
+     WHERE id IN (SELECT id FROM descendants) AND (id = $2 OR deleted_at = $3)`,
+    [new Date().toISOString(), id, deletedAt]
   );
 }
 
 export async function removePage(id: string): Promise<void> {
   const database = await getDb();
-  await database.execute("DELETE FROM pages WHERE id = $1", [id]);
+  await database.execute(
+    `${DESCENDANTS_CTE.replace("{P}", "$1")}
+     DELETE FROM pages WHERE id IN (SELECT id FROM descendants)`,
+    [id]
+  );
 }
 
 export async function saveVersion(

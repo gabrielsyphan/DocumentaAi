@@ -2,6 +2,22 @@ import { create } from "zustand";
 import type { Page, PageWithChildren } from "../types";
 import { fetchAllPages, fetchTrash, upsertPage, softDeletePage, restorePageFromTrash, removePage } from "../lib/db";
 
+// Coleta o id e todos os descendentes hierárquicos (subpáginas, sub-subpáginas...)
+function collectDescendantIds(pages: Page[], rootId: string): Set<string> {
+  const ids = new Set([rootId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const p of pages) {
+      if (p.parent_id && ids.has(p.parent_id) && !ids.has(p.id)) {
+        ids.add(p.id);
+        changed = true;
+      }
+    }
+  }
+  return ids;
+}
+
 function isDailyNoteEmpty(content: string | null): boolean {
   if (!content) return true;
   try {
@@ -144,12 +160,14 @@ export const usePagesStore = create<PagesState>((set, get) => ({
 
   trashPage: async (id) => {
     await softDeletePage(id);
-    const pages = get().pages.filter((p) => p.id !== id);
+    // A deleção é em cascata no banco — remove o item e as subpáginas do estado também
+    const removed = collectDescendantIds(get().pages, id);
+    const pages = get().pages.filter((p) => !removed.has(p.id));
     const { selectedPageId } = get();
     set({
       pages,
       tree: buildTree(pages.filter((p) => p.type !== "daily")),
-      selectedPageId: selectedPageId === id ? null : selectedPageId,
+      selectedPageId: selectedPageId && removed.has(selectedPageId) ? null : selectedPageId,
     });
   },
 
@@ -163,7 +181,8 @@ export const usePagesStore = create<PagesState>((set, get) => ({
 
   permanentDeletePage: async (id) => {
     await removePage(id);
-    const trash = get().trash.filter((p) => p.id !== id);
+    // O banco também apagou descendentes que estavam na lixeira — recarrega a lista
+    const trash = await fetchTrash();
     set({ trash });
   },
 
