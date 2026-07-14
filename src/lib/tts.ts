@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 type InlineItem = { type: string; text?: string; content?: InlineItem[]; props?: Record<string, string> };
-type Block = { type: string; content?: InlineItem[]; children?: Block[] };
+// Células podem ser objeto { content } (formato atual) ou array de inlines (formato antigo)
+type TableCell = { content?: InlineItem[] } | InlineItem[];
+type TableContent = { type: "tableContent"; rows?: { cells?: TableCell[] }[] };
+// Blocos de tabela têm content como objeto (tableContent), não array de inlines
+type Block = { type: string; content?: InlineItem[] | TableContent; children?: Block[] };
 
 function inlineToText(items: InlineItem[] = []): string {
   return items
@@ -14,10 +18,25 @@ function inlineToText(items: InlineItem[] = []): string {
     .join("");
 }
 
+function cellToText(cell: TableCell): string {
+  return inlineToText(Array.isArray(cell) ? cell : cell?.content ?? []).trim();
+}
+
+function tableToText(table: TableContent): string {
+  return (table.rows ?? [])
+    .map((row) => (row.cells ?? []).map(cellToText).filter(Boolean).join(". "))
+    .filter(Boolean)
+    .join(". ");
+}
+
 function blockToText(block: Block): string {
   // Ignora código, imagens e mídia — faz sentido para leitura
   if (["codeBlock", "image", "video", "audio", "captureStamp"].includes(block.type)) return "";
-  const text = inlineToText(block.content ?? []).trim();
+  const text = Array.isArray(block.content)
+    ? inlineToText(block.content).trim()
+    : block.content?.type === "tableContent"
+      ? tableToText(block.content)
+      : "";
   const childText = (block.children ?? []).map(blockToText).filter(Boolean).join(" ");
   return [text, childText].filter(Boolean).join(" ");
 }

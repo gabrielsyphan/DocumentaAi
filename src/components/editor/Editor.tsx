@@ -112,8 +112,35 @@ function SlideCodeBlock({ block }: { block: BNBlock }) {
   return <pre className="slide-code"><code>{code}</code></pre>;
 }
 
+// content de tabela é objeto (tableContent), não array de inlines
+type BNTableCell = { content?: InlineItem[] } | InlineItem[];
+type BNTableContent = { type: "tableContent"; rows?: { cells?: BNTableCell[] }[] };
+
+function renderSlideTable(table: BNTableContent, idx: number): React.ReactNode {
+  const rows = table.rows ?? [];
+  return (
+    <table key={idx} className="slide-table">
+      <tbody>
+        {rows.map((row, ri) => (
+          <tr key={ri}>
+            {(row.cells ?? []).map((cell, ci) => {
+              const items = Array.isArray(cell) ? cell : cell?.content ?? [];
+              const Tag = ri === 0 ? "th" : "td";
+              return <Tag key={ci}>{renderInline(items)}</Tag>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function renderSlideBlock(block: BNBlock, idx: number): React.ReactNode {
-  const inline = renderInline(block.content);
+  if (block.type === "table") {
+    const table = block.content as unknown as BNTableContent;
+    return table?.type === "tableContent" ? renderSlideTable(table, idx) : null;
+  }
+  const inline = Array.isArray(block.content) ? renderInline(block.content) : null;
   switch (block.type) {
     case "paragraph":
       return <p key={idx} className="slide-p">{inline}</p>;
@@ -1091,7 +1118,14 @@ function blocksToPlainText(content: string | null): string {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function blockToLine(b: any): string {
-      const text = inlineToText(b.content ?? []);
+      // Tabelas: content é objeto (tableContent), não array de inlines
+      if (b.type === "table" && b.content?.rows) {
+        return (b.content.rows as { cells?: unknown[] }[])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((r) => "| " + (r.cells ?? []).map((c: any) => inlineToText(Array.isArray(c) ? c : c?.content ?? [])).join(" | ") + " |")
+          .join("\n");
+      }
+      const text = inlineToText(Array.isArray(b.content) ? b.content : []);
       if (b.type === "heading") return "#".repeat(b.props?.level ?? 1) + " " + text;
       if (b.type === "bulletListItem") return "• " + text;
       if (b.type === "numberedListItem") return "  " + text;

@@ -1,18 +1,23 @@
+type InlineItem = { type: string; text?: string; styles?: Record<string, boolean>; href?: string; content?: unknown[] };
+// Células podem ser objeto { content } (formato atual) ou array de inlines (formato antigo)
+type TableCell = { content?: InlineItem[] } | InlineItem[];
+type TableContent = { type: "tableContent"; rows?: { cells?: TableCell[] }[] };
 type Block = {
   id: string;
   type: string;
   props?: Record<string, unknown>;
-  content?: Array<{ type: string; text?: string; styles?: Record<string, boolean>; href?: string; content?: unknown[] }>;
+  // Blocos de tabela têm content como objeto (tableContent), não array de inlines
+  content?: InlineItem[] | TableContent;
   children?: Block[];
 };
 
 // ── Markdown ──────────────────────────────────────────────────────────────────
 
-function inlineToMd(items: Block["content"] = []): string {
+function inlineToMd(items: InlineItem[] = []): string {
   return items
     .map((item) => {
       if (item.type === "link") {
-        const text = inlineToMd(item.content as Block["content"]);
+        const text = inlineToMd(item.content as InlineItem[]);
         return `[${text}](${item.href ?? ""})`;
       }
       if (item.type !== "text" || !item.text) return "";
@@ -27,9 +32,24 @@ function inlineToMd(items: Block["content"] = []): string {
     .join("");
 }
 
+function cellToMd(cell: TableCell): string {
+  return inlineToMd(Array.isArray(cell) ? cell : cell?.content ?? []);
+}
+
+function tableToMd(table: TableContent): string {
+  const rows = table.rows ?? [];
+  return rows
+    .flatMap((row, i) => {
+      const line = `| ${(row.cells ?? []).map(cellToMd).join(" | ")} |`;
+      // Separador de cabeçalho após a primeira linha (obrigatório em Markdown)
+      return i === 0 ? [line, `|${(row.cells ?? []).map(() => " --- ").join("|")}|`] : [line];
+    })
+    .join("\n");
+}
+
 function blockToMd(block: Block, depth = 0): string {
   const indent = "  ".repeat(depth);
-  const inline = inlineToMd(block.content);
+  const inline = Array.isArray(block.content) ? inlineToMd(block.content) : "";
   const children = (block.children ?? []).map((c) => blockToMd(c, depth + 1)).join("\n");
 
   let line = "";
@@ -62,7 +82,9 @@ function blockToMd(block: Block, depth = 0): string {
       line = `![image](${block.props?.url ?? ""})`;
       break;
     case "table":
-      line = "<!-- table -->";
+      line = !Array.isArray(block.content) && block.content?.type === "tableContent"
+        ? tableToMd(block.content)
+        : "";
       break;
     default:
       line = inline;

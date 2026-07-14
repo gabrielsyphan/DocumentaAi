@@ -2551,6 +2551,23 @@ html, body, #root {
 .pres-slide-body .slide-list { padding-left: 1.5em; margin: 6px 0; }
 .pres-slide-body .slide-bullet { margin: 4px 0; list-style: disc; }
 .pres-slide-body .slide-numbered { margin: 4px 0; }
+.pres-slide-body .slide-table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.85em;
+  width: 100%;
+}
+.pres-slide-body .slide-table th,
+.pres-slide-body .slide-table td {
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 8px 14px;
+  text-align: left;
+}
+.pres-slide-body .slide-table th {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-weight: 600;
+}
 .pres-slide-body .slide-code {
   background: rgba(255,255,255,0.08);
   border-radius: 8px;
