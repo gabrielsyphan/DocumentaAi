@@ -450,7 +450,7 @@
     <h2>Conecte sua IA ao DocumentaAI</h2>
     <p>Temos um servidor MCP integrado. Em vez de seguir um tutorial, passe este link para o Claude Code, Cursor ou Kiro — sua IA lê as instruções e configura tudo automaticamente.</p>
     <div class="mcp-url-box">
-      <span class="mcp-url-text">documentaai.rovanly.com/setup-mcp.md</span>
+      <span class="mcp-url-text">gabrielsyphan.github.io/documentaai/setup-mcp.md</span>
       <button class="mcp-url-copy" onclick="copyMcpUrl(this)">
         <i data-lucide="copy"></i> Copiar
       </button>
@@ -459,7 +459,7 @@
       <i data-lucide="message-square"></i>
       <div>
         <div class="mcp-example-label">Exemplo de prompt</div>
-        <div class="mcp-example-text">"Leia https://documentaai.rovanly.com/setup-mcp.md e configure o MCP do DocumentaAI para mim."</div>
+        <div class="mcp-example-text">"Leia https://gabrielsyphan.github.io/documentaai/setup-mcp.md e configure o MCP do DocumentaAI para mim."</div>
       </div>
     </div>
     <div class="mcp-tools">
@@ -893,7 +893,7 @@ async function loadGitHubStars() {
 
 /* ── MCP URL copy ── */
 function copyMcpUrl(btn) {
-  navigator.clipboard.writeText('https://documentaai.rovanly.com/setup-mcp.md').then(() => {
+  navigator.clipboard.writeText('https://gabrielsyphan.github.io/documentaai/setup-mcp.md').then(() => {
     const orig = btn.innerHTML;
     btn.innerHTML = '<i data-lucide="check"></i> Copiado!';
     lucide.createIcons({ nodes: [btn] });
