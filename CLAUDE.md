@@ -400,6 +400,8 @@ Distribuição por APK sideload (sem Play Store), assinado com keystore própria
       `src-tauri/gen/android/keystore.properties`, fora do git) — **fazer backup!**
 - [x] Job `build-android` no release.yml: APK universal assinado anexado ao release
       (requer secrets `ANDROID_KEYSTORE_B64` e `ANDROID_KEYSTORE_PASSWORD`)
+      — **temporariamente desativado** (`if: false`) em jul/2026 pois estava
+      falhando; remover a linha para reativar
 
 ### Fase 13 — Sync por rede local ✅ concluída
 
