@@ -1,6 +1,6 @@
 [package]
 name = "documentaai"
-version = "1.4.0"
+version = "1.5.0"
 description = "DocumentaAI - Ferramenta de documentação pessoal"
 authors = []
 edition = "2021"
@@ -23,6 +23,7 @@ tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+base64 = "0.22"
 
 # Plugins que só existem no desktop (não compilam para Android/iOS)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

@@ -1,19 +1,70 @@
-import { Folder, FolderOpen, FileText, PenTool, Plus } from "lucide-react";
+import { useState } from "react";
+import { Folder, FolderOpen, FileText, PenTool, Plus, BookText } from "lucide-react";
 import type { Page } from "../../types";
 import { usePagesStore } from "../../store/pages.store";
+import { exportFolderAsPdf, type BookChapter } from "../../lib/pdf-export";
+import { useIsMobile } from "../../hooks/useIsMobile";
 
 interface Props {
   pageId: string;
 }
 
+// Percorre a pasta em profundidade: documentos e daily viram capítulos com
+// conteúdo; subpastas viram capítulos "de seção" e aninham (1, 1.1, 1.1.1…).
+// Canvas e boards ficam de fora — não têm texto exportável.
+function collectChapters(pages: Page[], parentId: string, level = 0): BookChapter[] {
+  const children = pages
+    .filter((p) => p.parent_id === parentId)
+    .sort((a, b) => a.order_index - b.order_index);
+
+  const chapters: BookChapter[] = [];
+  for (const child of children) {
+    if (child.type === "folder") {
+      // Pasta sem nada exportável dentro não vira seção (evitaria página vazia)
+      const sub = collectChapters(pages, child.id, level + 1);
+      if (sub.length > 0) {
+        chapters.push({ title: child.title, emoji: child.emoji, level, blocks: [], kind: "folder" });
+        chapters.push(...sub);
+      }
+    } else if (child.type === "document" || child.type === "daily") {
+      let blocks = [];
+      try { blocks = JSON.parse(child.content ?? "[]"); } catch { /* conteúdo inválido */ }
+      chapters.push({
+        title: child.title,
+        emoji: child.emoji,
+        level,
+        blocks: Array.isArray(blocks) ? blocks : [],
+        kind: "page",
+      });
+    }
+  }
+  return chapters;
+}
+
 export default function FolderView({ pageId }: Props) {
   const { pages, updatePage, createPage, selectPage } = usePagesStore();
   const folder = pages.find((p) => p.id === pageId);
+  const isMobile = useIsMobile();
+  const [exporting, setExporting] = useState(false);
   const children = pages
     .filter((p) => p.parent_id === pageId)
     .sort((a, b) => a.order_index - b.order_index);
 
   if (!folder) return null;
+
+  async function handleExportPdf() {
+    if (!folder || exporting) return;
+    const chapters = collectChapters(pages, pageId);
+    if (chapters.length === 0) return;
+    setExporting(true);
+    try {
+      await exportFolderAsPdf(folder.title, chapters);
+    } catch (e) {
+      console.error("Erro ao exportar PDF da pasta:", e);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     updatePage(pageId, { title: e.target.value });
@@ -67,6 +118,17 @@ export default function FolderView({ pageId }: Props) {
           <button className="folder-create-btn" onClick={() => handleCreate("folder")}>
             <Plus size={12} /><Folder size={12} /> Pasta
           </button>
+          {/* Download de arquivo não funciona no WebView Android — desktop-only */}
+          {!isMobile && children.length > 0 && (
+            <button
+              className="folder-create-btn folder-export-btn"
+              onClick={handleExportPdf}
+              disabled={exporting}
+              title="Gera um PDF com capa, sumário e um capítulo por item (subpastas viram seções)"
+            >
+              <BookText size={12} /> {exporting ? "Gerando…" : "Exportar PDF"}
+            </button>
+          )}
         </div>
 
         {children.length === 0 ? (

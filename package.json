@@ -1,7 +1,7 @@
 {
   "name": "documentaai",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,6 +26,7 @@
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
     "lucide-react": "^0.474",
+    "pdfmake": "^0.3.11",
     "qrcode": "^1.5.4",
     "react": "^19",
     "react-dom": "^19",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4",
     "@tauri-apps/cli": "^2",
+    "@types/pdfmake": "^0.3.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",

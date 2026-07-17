@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
-import { Minimize2, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw, Menu } from "lucide-react";
+import { Minimize2, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw, Menu, MessageSquareText } from "lucide-react";
 import { useIsMobile } from "../../hooks/useIsMobile";
 
 class EditorErrorBoundary extends Component<
@@ -80,6 +80,7 @@ import BoardEditor from "../editor/BoardEditor";
 import SearchModal from "../search/SearchModal";
 import TemplateGallery from "../templates/TemplateGallery";
 import TranslatePanel from "../translate/TranslatePanel";
+import ChatPanel from "../chat/ChatPanel";
 import UpdateBanner from "./UpdateBanner";
 import HomeScreen from "../home/HomeScreen";
 
@@ -95,6 +96,7 @@ export default function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [translateOpen, setTranslateOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // No mobile, navegar para uma página fecha o drawer
@@ -124,6 +126,13 @@ export default function AppShell() {
       if (mod && e.key === "t") {
         e.preventDefault();
         setTranslateOpen((v) => !v);
+        return;
+      }
+
+      // ⌘J → chat com a base de conhecimento
+      if (mod && e.key === "j") {
+        e.preventDefault();
+        setChatOpen((v) => !v);
         return;
       }
 
@@ -230,11 +239,23 @@ export default function AppShell() {
             onTemplates={() => setTemplatesOpen(true)}
           />
         )}
+
+        {/* Chat com a base — flutuante no canto (desktop; some no modo foco) */}
+        {!isMobile && !focusMode && !chatOpen && (
+          <button
+            className="chat-fab"
+            onClick={() => setChatOpen(true)}
+            title="Chat com a base de conhecimento (⌘J)"
+          >
+            <MessageSquareText size={19} />
+          </button>
+        )}
       </main>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <TemplateGallery open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <TranslatePanel open={translateOpen} onClose={() => setTranslateOpen(false)} />
+      {!isMobile && <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />}
       <UpdateBanner />
     </div>
   );

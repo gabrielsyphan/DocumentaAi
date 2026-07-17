@@ -3,7 +3,7 @@ import {
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft, LayoutGrid,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
   FileUp, Palette, BookOpen, Network, Check, HardDriveDownload, HardDriveUpload,
-  MonitorSmartphone, Languages, MoreHorizontal,
+  MonitorSmartphone, Languages, MoreHorizontal, Sparkles,
 } from "lucide-react";
 import SyncModal from "../sync/SyncModal";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
@@ -16,6 +16,8 @@ import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
 import { revealInTree } from "../../lib/reveal";
+import { hasUnseenChangelog, markChangelogSeen } from "../../lib/changelog";
+import ChangelogModal from "../changelog/ChangelogModal";
 import type { Page } from "../../types";
 import PageItem from "./PageItem";
 import { DragProvider } from "./DragContext";
@@ -239,6 +241,19 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
   const [showSync, setShowSync] = useState(false);
   const dueCount = useDueCount();
   const [appVersion, setAppVersion] = useState("");
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [changelogUnseen, setChangelogUnseen] = useState(false);
+
+  useEffect(() => {
+    if (appVersion) setChangelogUnseen(hasUnseenChangelog(appVersion));
+  }, [appVersion]);
+
+  function openChangelog() {
+    setShowChangelog(true);
+    markChangelogSeen(appVersion);
+    setChangelogUnseen(false);
+    setShowMoreMenu(false);
+  }
   const [backupStatus, setBackupStatus] = useState<"idle" | "busy" | "ok" | "err">("idle");
   const [restoreFilePath, setRestoreFilePath] = useState<string | null>(null);
   const newMenuRef = useRef<HTMLDivElement>(null);
@@ -363,7 +378,16 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
         >
           DocumentaAI
         </button>
-        {appVersion && <span className="sidebar-version">v{appVersion}</span>}
+        {appVersion && (
+          <button
+            className="sidebar-version sidebar-version-btn"
+            onClick={openChangelog}
+            title="Notas de atualização"
+          >
+            v{appVersion}
+            {changelogUnseen && <span className="sidebar-version-dot" />}
+          </button>
+        )}
       </div>
 
       <div className="sidebar-actions">
@@ -591,7 +615,6 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
         >
           <Languages size={16} />
         </button>
-
         {/* Ações menos frequentes agrupadas no menu "Mais" */}
         <div style={{ position: "relative" }} ref={moreMenuRef}>
           <button
@@ -624,6 +647,10 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
               >
                 <Network size={14} />
                 Graph view
+              </button>
+              <button className="more-menu-item" onClick={openChangelog}>
+                <Sparkles size={14} />
+                Notas de atualização
               </button>
 
               <div className="more-menu-divider" />
@@ -720,6 +747,15 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
           em vez da tela */}
       {showReview &&
         createPortal(<ReviewSession onClose={() => setShowReview(false)} />, document.body)}
+      {showChangelog &&
+        createPortal(
+          <ChangelogModal
+            open
+            currentVersion={appVersion}
+            onClose={() => setShowChangelog(false)}
+          />,
+          document.body
+        )}
       <SyncModal open={showSync} onClose={() => setShowSync(false)} />
 
       {showGraph &&

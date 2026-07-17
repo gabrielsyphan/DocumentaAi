@@ -2,6 +2,8 @@ use tauri::Manager;
 #[cfg(desktop)]
 mod sync_server;
 #[cfg(desktop)]
+mod chat_agent;
+#[cfg(desktop)]
 use tauri::tray::TrayIconBuilder;
 #[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, CheckMenuItemBuilder, PredefinedMenuItem};
@@ -330,6 +332,37 @@ async fn save_text_file(
     }
 }
 
+/// Like save_text_file, but for binary content (frontend sends base64).
+/// Used for PDF export — the WebView can't download files.
+#[tauri::command]
+async fn save_binary_file(
+    app: tauri::AppHandle,
+    suggested_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+    contents_base64: String,
+) -> Result<bool, String> {
+    use base64::Engine;
+    use tauri_plugin_dialog::DialogExt;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(contents_base64.as_bytes())
+        .map_err(|e| format!("Base64 inválido: {e}"))?;
+    let exts: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+    let path = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_name)
+        .add_filter(&filter_name, &exts)
+        .blocking_save_file();
+    match path.and_then(|p| p.as_path().map(|p| p.to_path_buf())) {
+        Some(p) => {
+            std::fs::write(&p, bytes).map_err(|e| format!("Erro ao salvar: {e}"))?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
+}
+
 /// Opens a file picker and returns the chosen backup path (or None if cancelled).
 #[tauri::command]
 async fn pick_restore_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
@@ -456,9 +489,13 @@ pub fn run() {
                     pick_restore_file,
                     apply_restore,
                     save_text_file,
+                    save_binary_file,
                     sync_server::sync_server_status,
                     sync_server::sync_server_start,
                     sync_server::sync_server_stop,
+                    chat_agent::chat_agent_check,
+                    chat_agent::chat_agent_send,
+                    chat_agent::chat_agent_cancel,
                 ]
             }
             #[cfg(mobile)]
@@ -474,6 +511,7 @@ pub fn run() {
                     pick_restore_file,
                     apply_restore,
                     save_text_file,
+                    save_binary_file,
                 ]
             }
         })
@@ -486,6 +524,7 @@ pub fn run() {
             }
             #[cfg(desktop)]
             {
+            app.manage(chat_agent::ChatState::default());
             // When launched at login with --hidden, keep the main window hidden
             let args: Vec<String> = std::env::args().collect();
             if args.contains(&"--hidden".to_string()) {

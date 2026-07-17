@@ -946,9 +946,10 @@ dependencies = [
 
 [[package]]
 name = "documentaai"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "block",
  "local-ip-address",
  "objc",

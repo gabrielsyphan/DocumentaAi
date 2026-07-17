@@ -169,8 +169,21 @@ cd mcp-server && npm install && npm run build
 - [x] Ícone de export aparece ao passar o mouse no título da página
 - [x] Export para **Markdown** — serializa BlockNote JSON em `.md` com suporte a
       títulos, listas, checkboxes, negrito, itálico, links, código e blocos de código
-- [x] Export para **PDF** via `window.print()` com título da página como nome do arquivo
-- [x] Utilitário em `src/lib/export.ts`
+- [x] "Imprimir…" via `window.print()` (`src/lib/export.ts`)
+- [x] **Exportar PDF real** (pdfmake 0.3, lazy ~1 MB, `src/lib/pdf-export.ts`):
+      página única com título/data/rodapé numerado, salvo via `save_binary_file`
+      (dialog nativo; base64 → bytes no Rust) — desktop-only
+- [x] **Exportar pasta como PDF "livro"** (botão na FolderView): capa, sumário
+      automático com nº de página (`toc`/`tocItem` do pdfmake), cada item vira
+      capítulo numerado com quebra de página; subpastas aninham (1, 1.1, …);
+      canvas/boards ficam de fora; fonte Roboto embutida
+      (`pdfmake/build/fonts/Roboto` — API 0.3, não existe mais vfs_fonts)
+- [x] Subpasta vira **página divisória de seção**: rótulo "SEÇÃO n", título
+      centralizado, linha decorativa e mini-sumário "Nesta seção" com os filhos
+      diretos; a entrada numerada do sumário vem de um nó invisível
+      (fontSize 1 + opacity 0) para não repetir o número no visual; pastas sem
+      conteúdo exportável não geram página; emojis são removidos dos títulos
+      no PDF (Roboto não tem esses glifos — virariam espaço em branco)
 
 #### Templates ✅ concluído
 - [x] Galeria de templates pré-prontos: Reunião, Review Semanal, Planejamento de Projeto,
@@ -432,6 +445,14 @@ celular sincroniza quando está na mesma rede Wi-Fi.
       scroll) — helper compartilhado em `src/lib/reveal.ts`, usado também pela sidebar
 - [x] Nome "DocumentaAI" na sidebar é clicável e volta para a tela de início
 
+### Notas de atualização (changelog no app)
+- Changelog embutido em `src/lib/changelog.ts` (offline-first; os releases do
+  GitHub têm só tabela de downloads). **A cada nova tag/release, adicionar uma
+  entrada no topo do array `CHANGELOG`** com as novidades em pt-BR.
+- Modal `ChangelogModal` acessível pelo **"v x.y.z" clicável** no topo da sidebar
+  e pelo menu "Mais"; badge de versão instalada; ponto no número da versão
+  quando o usuário ainda não viu as notas da versão atual (`localStorage`).
+
 ### Organização do rodapé da sidebar
 O rodapé mostra só o uso frequente: **Flashcards** (badge de vencidos) e **Tradutor**.
 O resto vive no menu "Mais" (⋯, abre para cima, itens com rótulo): Recarregar,
@@ -461,12 +482,27 @@ no botão, que agora fica dentro do menu).
       `list_knowledge_sources()`, `reindex_knowledge()` (warm-up, aguarda tudo)
 - [x] Funciona no Claude Code, Kiro (IDE e CLI) e Cursor via MCP já configurado
 
-#### Chat embutido (Fase 2 do plano — próximo)
-- [ ] Painel de chat no app conversando com agente headless: `claude -p
-      --output-format stream-json` (usa a assinatura logada) e `kiro-cli chat
-      --no-interactive` como engines selecionáveis
-- [ ] Restringir tools do agente à leitura da base (`--allowedTools`/`--trust-tools`)
-- [ ] Streaming das respostas + citação das páginas-fonte
+#### Chat embutido ✅ concluído (Fase 2 do plano)
+- [x] Painel modal (⌘J + botão flutuante `.chat-fab` no canto inferior direito do
+      editor — some no modo foco/mobile e enquanto o chat está aberto, desktop-only)
+      conversando com agente CLI headless — `src-tauri/src/chat_agent.rs` +
+      `src/components/chat/ChatPanel.tsx`
+- [x] Engine **Claude** (completa): `claude -p --output-format stream-json --verbose
+      --include-partial-messages` → streaming token a token via eventos Tauri
+      (`chat-agent-line`/`chat-agent-done`); memória de conversa via `--resume`
+      (cwd fixo no $HOME — sessões do claude são por diretório); usa a assinatura
+      logada do usuário, sem chave de API
+- [x] Engine **Kiro CLI** (básica): `kiro-cli chat --no-interactive`, saída texto
+      puro, sem memória entre mensagens; seletor mostra aviso
+- [x] Escopo restrito: `--mcp-config` inline só com o documentaai +
+      `--strict-mcp-config`; `--allowedTools` só leitura da base;
+      `--disallowedTools` bloqueia Bash/Write/Edit/Read/Web e as tools de escrita
+      do MCP; `--append-system-prompt` manda citar páginas-fonte em PT
+- [x] Resolução de binários fora do PATH de GUI (~/.local/bin, /opt/homebrew/bin…);
+      caminho do mcp-server: override em localStorage ou path de dev
+      (CARGO_MANIFEST_DIR) — tela de setup no painel se faltar CLI/mcp-server
+- [x] Chips de tool use ("search_knowledge: …"), títulos em **negrito** citados
+      viram link que abre a página, botão parar (kill), nova conversa
 
 ### Fase 15 — Sync na nuvem (futuro distante)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)

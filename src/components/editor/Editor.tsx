@@ -11,6 +11,7 @@ import { useUIStore } from "../../store/ui.store";
 import { isTauri, convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { blocksToMarkdown, printToPdf } from "../../lib/export";
+import { exportPageAsPdf } from "../../lib/pdf-export";
 import { saveCustomTemplate, stripBlockIds } from "../../lib/templates";
 import { tagColor, normalizeTag } from "../../lib/tags";
 import { useTTS, countWords, type TTSState } from "../../lib/tts";
@@ -556,6 +557,13 @@ export default function Editor({ pageId }: Props) {
 
   function handleExportPdf() {
     setShowExport(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    exportPageAsPdf(page?.title ?? "documento", editor.document as any)
+      .catch((e) => console.error("Erro ao exportar PDF:", e));
+  }
+
+  function handlePrint() {
+    setShowExport(false);
     printToPdf(page?.title ?? "documento");
   }
 
@@ -746,7 +754,10 @@ export default function Editor({ pageId }: Props) {
                       <FileDown size={13} /> Exportar Markdown
                     </button>
                     <button className="export-menu-item" onMouseDown={handleExportPdf}>
-                      <Printer size={13} /> Exportar PDF
+                      <FileDown size={13} /> Exportar PDF
+                    </button>
+                    <button className="export-menu-item" onMouseDown={handlePrint}>
+                      <Printer size={13} /> Imprimir…
                     </button>
                     <div className="export-menu-divider" />
                   </>
