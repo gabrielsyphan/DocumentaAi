@@ -3,7 +3,7 @@ import {
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft, LayoutGrid,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
   FileUp, Palette, BookOpen, Network, Check, HardDriveDownload, HardDriveUpload,
-  MonitorSmartphone,
+  MonitorSmartphone, Languages, MoreHorizontal,
 } from "lucide-react";
 import SyncModal from "../sync/SyncModal";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
@@ -15,6 +15,7 @@ import { vacuumInto } from "../../lib/db";
 import { usePagesStore } from "../../store/pages.store";
 import { useUIStore, type PageSort, THEMES } from "../../store/ui.store";
 import { tagColor } from "../../lib/tags";
+import { revealInTree } from "../../lib/reveal";
 import type { Page } from "../../types";
 import PageItem from "./PageItem";
 import { DragProvider } from "./DragContext";
@@ -26,7 +27,17 @@ const GraphView = lazy(() => import("../graph/GraphView"));
 interface Props {
   onSearch: () => void;
   onTemplates: () => void;
+  onTranslate: () => void;
 }
+
+const THEME_DOT_COLORS: Record<string, string> = {
+  dark: "#9480f5",
+  light: "#7b6cd8",
+  nord: "#81A1C1",
+  dracula: "#BD93F9",
+  rose: "#C4A7E7",
+  solarized: "#268BD2",
+};
 
 const SORT_LABELS: Record<PageSort, string> = {
   default: "Padrão",
@@ -213,33 +224,14 @@ function TrashSection() {
 
 // ── Sidebar principal ─────────────────────────────────────────────────────────
 
-export default function Sidebar({ onSearch, onTemplates }: Props) {
+export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
   const { pages, tree, createPage, createDailyNote, selectPage, selectedPageId, load, loading } = usePagesStore();
-  const { theme, setTheme, activeTag, setActiveTag, pageSort, setPageSort, expandPage } = useUIStore();
-
-  /** Abre um item revelando-o na árvore: expande os ancestrais e rola até ele. */
-  function revealInTree(pageId: string) {
-    const byId = new Map(pages.map((p) => [p.id, p]));
-    let cur = byId.get(pageId)?.parent_id ?? null;
-    const seen = new Set<string>(); // proteção contra ciclos de parent_id
-    while (cur && !seen.has(cur)) {
-      seen.add(cur);
-      expandPage(cur);
-      cur = byId.get(cur)?.parent_id ?? null;
-    }
-    selectPage(pageId);
-    // espera a árvore renderizar expandida antes de rolar até o item
-    setTimeout(() => {
-      document
-        .querySelector(`.page-tree [data-page-id="${CSS.escape(pageId)}"]`)
-        ?.scrollIntoView({ block: "center", behavior: "smooth" });
-    }, 80);
-  }
+  const { theme, setTheme, activeTag, setActiveTag, pageSort, setPageSort } = useUIStore();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortMenuRect, setSortMenuRect] = useState<DOMRect | null>(null);
   const sortBtnRef = useRef<HTMLButtonElement>(null);
-  const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   // Daily Notes sempre começa fechada (desktop e mobile)
   const [showDailySection, setShowDailySection] = useState(false);
   const [showReview, setShowReview] = useState(false);
@@ -251,7 +243,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   const [restoreFilePath, setRestoreFilePath] = useState<string | null>(null);
   const newMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
-  const themePickerRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   async function handleBackup() {
@@ -328,13 +320,13 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   }, [showSortMenu]);
 
   useEffect(() => {
-    if (!showThemePicker) return;
+    if (!showMoreMenu) return;
     const close = (e: MouseEvent) => {
-      if (!themePickerRef.current?.contains(e.target as Node)) setShowThemePicker(false);
+      if (!moreMenuRef.current?.contains(e.target as Node)) setShowMoreMenu(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [showThemePicker]);
+  }, [showMoreMenu]);
 
   useEffect(() => {
     const handleFocus = () => load();
@@ -364,7 +356,13 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <span>DocumentaAI</span>
+        <button
+          className="sidebar-brand-btn"
+          onClick={() => selectPage(null)}
+          title="Ir para o início"
+        >
+          DocumentaAI
+        </button>
         {appVersion && <span className="sidebar-version">v{appVersion}</span>}
       </div>
 
@@ -578,55 +576,6 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
 
       <div className="sidebar-footer">
         <button
-          className="theme-toggle"
-          onClick={() => load()}
-          title="Recarregar páginas"
-          disabled={loading}
-        >
-          <RefreshCw size={16} className={loading ? "spin" : ""} />
-        </button>
-        <button
-          className="theme-toggle"
-          onClick={() => setShowSync(true)}
-          title="Sync por rede local (desktop ↔ celular)"
-        >
-          <MonitorSmartphone size={16} />
-        </button>
-        <div style={{ position: "relative" }} ref={themePickerRef}>
-          <button
-            className={`theme-toggle${showThemePicker ? " active-footer" : ""}`}
-            onClick={() => setShowThemePicker((v) => !v)}
-            title="Tema de cor"
-          >
-            <Palette size={16} />
-          </button>
-          {showThemePicker && (
-            <div className="theme-picker-menu">
-              {THEMES.map((t) => (
-                <button
-                  key={t.value}
-                  className={`theme-picker-item${theme === t.value ? " active" : ""}`}
-                  onClick={() => { setTheme(t.value); setShowThemePicker(false); }}
-                >
-                  <span
-                    className="theme-picker-dot"
-                    style={{
-                      background: t.value === "nord" ? "#81A1C1"
-                        : t.value === "dracula" ? "#BD93F9"
-                        : t.value === "rose" ? "#C4A7E7"
-                        : t.value === "solarized" ? "#268BD2"
-                        : t.value === "light" ? "#7b6cd8"
-                        : "#9480f5",
-                    }}
-                  />
-                  {t.label}
-                  {theme === t.value && <span className="theme-picker-check">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
           className={`theme-toggle fc-sidebar-btn${dueCount > 0 ? " active-footer" : ""}`}
           onClick={() => setShowReview(true)}
           title={dueCount > 0 ? `${dueCount} flashcard${dueCount > 1 ? "s" : ""} para revisar` : "Flashcards"}
@@ -637,35 +586,100 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
         </button>
         <button
           className="theme-toggle"
-          onClick={() => setShowGraph(true)}
-          title="Graph View — mapa de conexões"
+          onClick={onTranslate}
+          title="Tradutor (⌘T)"
         >
-          <Network size={16} />
+          <Languages size={16} />
         </button>
 
-        {/* Backup / Restore */}
-        <button
-          className={`theme-toggle${backupStatus === "ok" ? " active-footer" : ""}`}
-          onClick={handleBackup}
-          disabled={backupStatus === "busy"}
-          title={
-            backupStatus === "busy" ? "Exportando…"
-            : backupStatus === "ok"  ? "Backup exportado!"
-            : backupStatus === "err" ? "Erro ao exportar"
-            : "Exportar backup"
-          }
-        >
-          <HardDriveDownload size={16} />
-        </button>
-        <div style={{ position: "relative" }}>
-          {restoreFilePath && (
-            <div style={{
-              position: "absolute", bottom: "calc(100% + 8px)", right: 0,
-              background: "var(--sidebar-bg)", border: "1px solid var(--border)",
-              borderRadius: 10, padding: "12px 14px", width: 220,
-              boxShadow: "0 6px 24px rgba(0,0,0,0.35)", zIndex: 200,
-            }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--sidebar-text-active)", marginBottom: 4 }}>
+        {/* Ações menos frequentes agrupadas no menu "Mais" */}
+        <div style={{ position: "relative" }} ref={moreMenuRef}>
+          <button
+            className={`theme-toggle${showMoreMenu ? " active-footer" : ""}`}
+            onClick={() => setShowMoreMenu((v) => !v)}
+            title="Mais opções"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+          {showMoreMenu && (
+            <div className="more-menu">
+              <button
+                className="more-menu-item"
+                onClick={() => load()}
+                disabled={loading}
+              >
+                <RefreshCw size={14} className={loading ? "spin" : ""} />
+                Recarregar páginas
+              </button>
+              <button
+                className="more-menu-item"
+                onClick={() => { setShowMoreMenu(false); setShowSync(true); }}
+              >
+                <MonitorSmartphone size={14} />
+                Sync por rede local
+              </button>
+              <button
+                className="more-menu-item"
+                onClick={() => { setShowMoreMenu(false); setShowGraph(true); }}
+              >
+                <Network size={14} />
+                Graph view
+              </button>
+
+              <div className="more-menu-divider" />
+
+              <button
+                className="more-menu-item"
+                onClick={handleBackup}
+                disabled={backupStatus === "busy"}
+              >
+                <HardDriveDownload size={14} />
+                {backupStatus === "busy" ? "Exportando…"
+                  : backupStatus === "ok" ? "Backup exportado ✓"
+                  : backupStatus === "err" ? "Erro ao exportar"
+                  : "Exportar backup"}
+              </button>
+              <button
+                className="more-menu-item"
+                onClick={() => { setShowMoreMenu(false); handlePickRestoreFile(); }}
+              >
+                <HardDriveUpload size={14} />
+                Importar backup…
+              </button>
+
+              <div className="more-menu-divider" />
+
+              {/* Tema: fileira de bolinhas — clique aplica na hora */}
+              <div className="more-menu-themes">
+                <Palette size={14} />
+                {THEMES.map((t) => (
+                  <button
+                    key={t.value}
+                    className={`theme-dot-btn${theme === t.value ? " active" : ""}`}
+                    style={{ background: THEME_DOT_COLORS[t.value] }}
+                    onClick={() => setTheme(t.value)}
+                    title={t.label}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Confirmação de restore em modal central (o menu já fechou nesse ponto) */}
+      {restoreFilePath &&
+        createPortal(
+          <div className="fc-overlay" onClick={() => setRestoreFilePath(null)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "var(--sidebar-bg)", border: "1px solid var(--border)",
+                borderRadius: 10, padding: "14px 16px", width: 300,
+                boxShadow: "0 6px 24px rgba(0,0,0,0.35)",
+              }}
+            >
+              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--sidebar-text-active)", marginBottom: 4 }}>
                 Restaurar backup?
               </p>
               <p style={{ fontSize: 11, color: "var(--sidebar-text)", opacity: 0.65, marginBottom: 6, wordBreak: "break-all" }}>
@@ -678,7 +692,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                 <button
                   onClick={handleApplyRestore}
                   style={{
-                    flex: 1, padding: "5px 0", border: "none", borderRadius: 6,
+                    flex: 1, padding: "6px 0", border: "none", borderRadius: 6,
                     background: "#f87171", color: "#fff", fontSize: 12, fontWeight: 600,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -688,7 +702,7 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                 <button
                   onClick={() => setRestoreFilePath(null)}
                   style={{
-                    flex: 1, padding: "5px 0", border: "1px solid var(--border)", borderRadius: 6,
+                    flex: 1, padding: "6px 0", border: "1px solid var(--border)", borderRadius: 6,
                     background: "transparent", color: "var(--sidebar-text)", fontSize: 12,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -697,16 +711,9 @@ export default function Sidebar({ onSearch, onTemplates }: Props) {
                 </button>
               </div>
             </div>
-          )}
-          <button
-            className={`theme-toggle${restoreFilePath ? " active-footer" : ""}`}
-            onClick={restoreFilePath ? () => setRestoreFilePath(null) : handlePickRestoreFile}
-            title="Importar backup (substitui todos os dados)"
-          >
-            <HardDriveUpload size={16} />
-          </button>
-        </div>
-      </div>
+          </div>,
+          document.body
+        )}
 
       {/* Modais em portal no <body>: no mobile a sidebar vira drawer com
           transform, o que faria o position:fixed deles alinhar ao drawer

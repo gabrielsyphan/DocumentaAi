@@ -76,7 +76,30 @@ interface PagesState {
   navForward: () => void;
 }
 
-export const usePagesStore = create<PagesState>((set, get) => ({
+export const usePagesStore = create<PagesState>((set, get) => {
+  // Daily note criada mas nunca digitada → descarta ao sair dela.
+  // Centralizado aqui para valer em TODOS os caminhos de navegação:
+  // clicar numa página, trocar de dia no calendário, ⌘N, ⌘[ / ⌘] etc.
+  function discardIfEmptyDaily(prevId: string | null) {
+    if (!prevId) return;
+    const prev = get().pages.find((p) => p.id === prevId);
+    if (!prev || prev.type !== "daily" || !isDailyNoteEmpty(prev.content)) return;
+    removePage(prevId).then(() => {
+      const { pages, navHistory, navIndex } = get();
+      const updated = pages.filter((p) => p.id !== prevId);
+      // Tira a página descartada do histórico para ⌘[ / ⌘] não caírem numa página que não existe mais
+      const newHistory = navHistory.filter((h) => h !== prevId);
+      const removedBefore = navHistory.slice(0, navIndex + 1).filter((h) => h === prevId).length;
+      set({
+        pages: updated,
+        tree: buildTree(updated.filter((p) => p.type !== "daily")),
+        navHistory: newHistory,
+        navIndex: Math.min(Math.max(navIndex - removedBefore, 0), newHistory.length - 1),
+      });
+    });
+  }
+
+  return {
   pages: [],
   tree: [],
   trash: [],
@@ -115,7 +138,9 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     };
     await upsertPage(page);
     const pages = [...get().pages, page];
-    set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")), selectedPageId: page.id });
+    set({ pages, tree: buildTree(pages.filter((p) => p.type !== "daily")) });
+    // Seleciona via selectPage para descartar daily vazia anterior e registrar no histórico
+    get().selectPage(page.id);
     return page;
   },
 
@@ -124,7 +149,7 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     const { pages } = get();
     const existing = pages.find((p) => p.type === "daily" && p.title === date);
     if (existing) {
-      set({ selectedPageId: existing.id });
+      get().selectPage(existing.id);
       return existing;
     }
     const now = new Date().toISOString();
@@ -145,7 +170,8 @@ export const usePagesStore = create<PagesState>((set, get) => ({
     };
     await upsertPage(page);
     const newPages = [...pages, page];
-    set({ pages: newPages, tree: buildTree(newPages.filter((p) => p.type !== "daily")), selectedPageId: page.id });
+    set({ pages: newPages, tree: buildTree(newPages.filter((p) => p.type !== "daily")) });
+    get().selectPage(page.id);
     return page;
   },
 
@@ -240,20 +266,15 @@ export const usePagesStore = create<PagesState>((set, get) => ({
   },
 
   selectPage: (id) => {
-    if (!id) { set({ selectedPageId: null }); return; }
-    const { selectedPageId, navHistory, navIndex, pages } = get();
+    if (!id) {
+      discardIfEmptyDaily(get().selectedPageId);
+      set({ selectedPageId: null });
+      return;
+    }
+    const { selectedPageId, navHistory, navIndex } = get();
     if (id === selectedPageId) return;
 
-    // Daily note vazia ao sair → descarta sempre, sem restrição de tempo
-    if (selectedPageId) {
-      const prev = pages.find((p) => p.id === selectedPageId);
-      if (prev?.type === "daily" && isDailyNoteEmpty(prev.content)) {
-        removePage(selectedPageId).then(() => {
-          const updated = get().pages.filter((p) => p.id !== selectedPageId);
-          set({ pages: updated, tree: buildTree(updated.filter((p) => p.type !== "daily")) });
-        });
-      }
-    }
+    discardIfEmptyDaily(selectedPageId);
 
     const trimmed = navHistory.slice(0, navIndex + 1);
     const newHistory = [...trimmed, id];
@@ -261,16 +282,19 @@ export const usePagesStore = create<PagesState>((set, get) => ({
   },
 
   navBack: () => {
-    const { navHistory, navIndex } = get();
+    const { navHistory, navIndex, selectedPageId } = get();
     if (navIndex <= 0) return;
     const newIndex = navIndex - 1;
     set({ selectedPageId: navHistory[newIndex], navIndex: newIndex });
+    discardIfEmptyDaily(selectedPageId);
   },
 
   navForward: () => {
-    const { navHistory, navIndex } = get();
+    const { navHistory, navIndex, selectedPageId } = get();
     if (navIndex >= navHistory.length - 1) return;
     const newIndex = navIndex + 1;
     set({ selectedPageId: navHistory[newIndex], navIndex: newIndex });
+    discardIfEmptyDaily(selectedPageId);
   },
-}));
+  };
+});

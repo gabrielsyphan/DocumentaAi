@@ -195,7 +195,10 @@ cd mcp-server && npm install && npm run build
 - [x] `CanvasEditor.tsx` renderiza `@excalidraw/excalidraw` (lazy-loaded ~2 MB) quando `type === 'canvas'`
 - [x] Estado salvo como `{ elements, appState, files }` JSON na coluna `content` com debounce de 600 ms
 - [x] Export para PNG/SVG/JSON disponível nativamente pela toolbar do Excalidraw
-- [x] Tema claro/escuro sincronizado com o restante do app
+- [x] Tema sincronizado com o app: `viewBackgroundColor` fica `"transparent"` e a
+      div atrás do canvas pinta `var(--editor-bg)` — no modo escuro o Excalidraw
+      inverte as cores do canvas via filtro CSS, então cor sólida sairia errada;
+      transparente não é afetado pelo filtro (cores antigas migram ao abrir)
 
 ### Fase 5 — Qualidade de escrita
 
@@ -207,6 +210,16 @@ cd mcp-server && npm install && npm run build
 - [x] Controles em barra fixa no topo do editor: play/pause, stop, velocidade (0.75×–2×)
 - [x] Seleção de voz disponível no sistema via `<select>`
 - [x] Leitura parágrafo a parágrafo com progresso exibido (ex: 3/12)
+
+#### Busca na página (⌘F / Ctrl+F) ✅ concluída
+- [x] Barra flutuante no canto superior direito do editor (`FindInPageBar.tsx`)
+- [x] Busca ignora maiúsculas **e acentos** ("reuniao" encontra "Reunião")
+- [x] Highlights via **CSS Custom Highlight API** — pinta os resultados sem tocar
+      no DOM do ProseMirror (inserir `<mark>` quebraria o editor); fallback por
+      seleção em WebViews antigos
+- [x] Enter → próximo, Shift+Enter → anterior, Esc fecha; contador "3/12"
+- [x] Pré-preenche com o texto selecionado no editor (como nos navegadores)
+- [x] Re-busca automaticamente se o conteúdo for editado com a barra aberta
 
 #### Focus mode ✅ concluído
 - [x] Sidebar oculta, tipografia maior (17px), line-height mais espaçado
@@ -251,6 +264,14 @@ cd mcp-server && npm install && npm run build
 - [x] Botão BookOpen no topbar do editor: cria/gerencia cards (frente pré-preenchida com seleção)
 - [x] Sessão de revisão via sidebar: flip frente/verso, Errei/Difícil/OK/Fácil
 - [x] Badge vermelho no footer da sidebar mostra cards vencidos hoje
+- [x] **Importar da página**: parseia linhas `frente - verso` do conteúdo
+      (`src/lib/flashcard-import.ts`) com preview antes de criar; linha sem separador
+      é continuação do verso anterior; duplicados (mesma frente) são pulados;
+      headings/código ignorados; aceita `-`, `–` e `—` cercados de espaço
+- [x] Botão "Excluir todos" (com confirmação em 2 cliques) limpa os cards da página
+- [x] **Exportar CSV (Anki)**: gera `.csv` com diretivas `#separator`/`#html` que o
+      Anki importa direto; salva via comando Rust `save_text_file` (dialog nativo,
+      pois o WebView não baixa arquivos) — desktop-only
 
 #### Graph view ✅ concluído
 - [x] Modal fullscreen com grafo de força (D3 v7 + SVG), lazy-loaded
@@ -326,7 +347,8 @@ cd mcp-server && npm install && npm run build
 #### Temas de cor ✅
 - [x] 6 paletas: Escuro (padrão), Claro, Nord, Dracula, Rosé Pine, Solarized
 - [x] Cada tema define variáveis CSS completas (sidebar, editor, bordas, accent, scrollbar)
-- [x] Seletor de tema via botão Palette no footer da sidebar → dropdown com dots coloridos
+- [x] Seletor de tema: fileira de dots coloridos dentro do menu "Mais" (⋯) do footer
+      da sidebar — clique aplica na hora, sem fechar o menu (dá para experimentar)
 - [x] Tema salvo em `localStorage` e aplicado imediatamente ao trocar
 - [x] Toggle claro/escuro preservado; BlockNote recebe `"dark"|"light"` corretamente
 
@@ -337,6 +359,20 @@ cd mcp-server && npm install && npm run build
 - [x] Botão "Restaurar esta versão" diretamente na tela de diff
 
 ### Fase 11 — Integração com IA local
+
+#### Tradutor (Google Cloud Translation API) ✅ concluído
+- [x] Painel modal estilo Google Tradutor: botão `Languages` no rodapé da sidebar + atalho ⌘T
+- [x] Traduz enquanto digita (debounce 600ms), direções Auto / EN→PT / PT→EN,
+      botão de inverter, copiar resultado, contador de caracteres
+- [x] Modo Auto detecta o idioma; se a origem já é PT, refaz a chamada para EN
+- [x] Chave de API do usuário no `localStorage` (`src/lib/translate.ts`) — primeira
+      abertura mostra passo a passo de como criar a chave no Google Cloud
+- [x] Chamada REST v2 direto do frontend (googleapis libera CORS; CSP do Tauri é null)
+- [x] Free tier: 500k caracteres/mês
+- [x] Medidor de consumo mensal no painel: a API não expõe a cota via chave, então
+      cada caractere enviado é contado localmente (`localStorage`, zera por mês);
+      barra de progresso com alerta em 80% (laranja) e 95% (vermelho); no modo
+      auto as duas chamadas contam
 
 #### Ollama / APIs externas
 - [ ] Resumir página atual com um clique
@@ -390,7 +426,45 @@ celular sincroniza quando está na mesma rede Wi-Fi.
       saudação por hora + data, ações rápidas (nova página, canvas, nota de hoje,
       buscar, templates), favoritas em chips, recentes em grid
 - [x] Visual sóbrio (sem emojis/gradientes), fade-in em cascata discreto
-- [x] Clicar em favorito revela o item na árvore (expande ancestrais + scroll)
+- [x] Clicar em favorito **ou recente** revela o item na árvore (expande ancestrais +
+      scroll) — helper compartilhado em `src/lib/reveal.ts`, usado também pela sidebar
+- [x] Nome "DocumentaAI" na sidebar é clicável e volta para a tela de início
+
+### Organização do rodapé da sidebar
+O rodapé mostra só o uso frequente: **Flashcards** (badge de vencidos) e **Tradutor**.
+O resto vive no menu "Mais" (⋯, abre para cima, itens com rótulo): Recarregar,
+Sync rede local, Graph view, Exportar/Importar backup e o seletor de tema (dots).
+A confirmação de restaurar backup é um modal central via portal (não ancora mais
+no botão, que agora fica dentro do menu).
+
+### Fase 16 — Base de conhecimento (RAG local via MCP)
+
+#### Busca híbrida ✅ concluída (Fase 1 do plano)
+- [x] `mcp-server/knowledge.ts`: índice em `knowledge.db` AO LADO do banco principal
+      (dado derivado — fora de backup/sync; rebuild automático se apagado ou se
+      `SCHEMA_VERSION` mudar via `PRAGMA user_version`)
+- [x] Indexação **incremental** por `pages.updated_at` a cada busca (páginas
+      `document`+`daily` não deletadas); chunks de **~400 chars** com overlap de
+      linha inteira — chunks de 1200 chars diluíam o embedding e arruinavam o
+      ranking (testado); título fica FORA do texto embedado (só no FTS e exibição)
+- [x] Léxico: SQLite **FTS5/BM25** (`unicode61 remove_diacritics 2`)
+- [x] Semântico: `@huggingface/transformers` + **Xenova/multilingual-e5-small**
+      (q8, ~112 MB baixados 1x p/ `~/.cache/huggingface`, CPU, offline após download;
+      prefixos `query:`/`passage:` são obrigatórios no e5); KNN por cosseno em
+      memória (brute force — escala pessoal não precisa de vector DB)
+- [x] Fusão dos rankings por **RRF** (Reciprocal Rank Fusion, k=60)
+- [x] Embeddings calculados em segundo plano; busca degrada graciosamente para
+      léxico puro com nota explicativa enquanto o modelo baixa/processa
+- [x] Tools MCP: `search_knowledge(query, max_results)`,
+      `list_knowledge_sources()`, `reindex_knowledge()` (warm-up, aguarda tudo)
+- [x] Funciona no Claude Code, Kiro (IDE e CLI) e Cursor via MCP já configurado
+
+#### Chat embutido (Fase 2 do plano — próximo)
+- [ ] Painel de chat no app conversando com agente headless: `claude -p
+      --output-format stream-json` (usa a assinatura logada) e `kiro-cli chat
+      --no-interactive` como engines selecionáveis
+- [ ] Restringir tools do agente à leitura da base (`--allowedTools`/`--trust-tools`)
+- [ ] Streaming das respostas + citação das páginas-fonte
 
 ### Fase 15 — Sync na nuvem (futuro distante)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)

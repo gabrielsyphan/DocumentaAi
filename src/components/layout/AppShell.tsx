@@ -79,6 +79,7 @@ import FolderView from "../editor/FolderView";
 import BoardEditor from "../editor/BoardEditor";
 import SearchModal from "../search/SearchModal";
 import TemplateGallery from "../templates/TemplateGallery";
+import TranslatePanel from "../translate/TranslatePanel";
 import UpdateBanner from "./UpdateBanner";
 import HomeScreen from "../home/HomeScreen";
 
@@ -93,6 +94,7 @@ export default function AppShell() {
   const selectedPage = pages.find((p) => p.id === selectedPageId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // No mobile, navegar para uma página fecha o drawer
@@ -115,6 +117,13 @@ export default function AppShell() {
       if (mod && e.key === "n") {
         e.preventDefault();
         createPage();
+        return;
+      }
+
+      // ⌘T → tradutor
+      if (mod && e.key === "t") {
+        e.preventDefault();
+        setTranslateOpen((v) => !v);
         return;
       }
 
@@ -151,7 +160,11 @@ export default function AppShell() {
     >
       {!focusMode && (
         <>
-          <Sidebar onSearch={() => setSearchOpen(true)} onTemplates={() => setTemplatesOpen(true)} />
+          <Sidebar
+            onSearch={() => setSearchOpen(true)}
+            onTemplates={() => setTemplatesOpen(true)}
+            onTranslate={() => setTranslateOpen(true)}
+          />
           {isMobile && sidebarOpen && (
             <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
           )}
@@ -221,6 +234,7 @@ export default function AppShell() {
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <TemplateGallery open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+      <TranslatePanel open={translateOpen} onClose={() => setTranslateOpen(false)} />
       <UpdateBanner />
     </div>
   );

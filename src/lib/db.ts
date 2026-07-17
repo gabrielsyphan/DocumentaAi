@@ -258,6 +258,11 @@ export async function deleteFlashcard(id: string): Promise<void> {
   await database.execute("DELETE FROM flashcards WHERE id = $1", [id]);
 }
 
+export async function deleteFlashcardsByPage(pageId: string): Promise<void> {
+  const database = await getDb();
+  await database.execute("DELETE FROM flashcards WHERE page_id = $1", [pageId]);
+}
+
 // ── Sync por rede local ───────────────────────────────────────────────────────
 
 // Linha crua da tabela pages — o formato que trafega no protocolo de sync

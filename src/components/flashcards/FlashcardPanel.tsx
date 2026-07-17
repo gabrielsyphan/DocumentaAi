@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
-import { BookOpen, X, RotateCcw, Check, Trophy, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BookOpen, X, RotateCcw, Check, Trophy, Plus, Trash2, ListPlus, FileDown } from "lucide-react";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Flashcard } from "../../types";
+import { usePagesStore } from "../../store/pages.store";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import {
   createFlashcard,
   updateFlashcard,
@@ -8,8 +11,10 @@ import {
   fetchDueFlashcards,
   countDueFlashcards,
   deleteFlashcard,
+  deleteFlashcardsByPage,
 } from "../../lib/db";
 import { sm2, nextReviewDate, todayStr } from "../../lib/sm2";
+import { parseCardsFromBlocks, normalizeCardKey, flashcardsToAnkiCsv, safeFileName, type ParsedCard } from "../../lib/flashcard-import";
 
 // ── Contador de cards pendentes ───────────────────────────────────────────────
 
@@ -28,11 +33,14 @@ export function useDueCount(): number {
 export function CreateFlashcardModal({
   pageId,
   initialFront,
+  getBlocks,
   onClose,
   onCreated,
 }: {
   pageId: string;
   initialFront: string;
+  /** Blocos atuais do editor, para "Importar da página" */
+  getBlocks?: () => unknown;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -40,10 +48,95 @@ export function CreateFlashcardModal({
   const [back, setBack] = useState("");
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState<ParsedCard[] | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [exported, setExported] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pageTitle = usePagesStore((s) => s.pages.find((p) => p.id === pageId)?.title) ?? "";
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchFlashcardsByPage(pageId).then(setCards);
+    return () => clearTimeout(confirmTimer.current);
   }, [pageId]);
+
+  const existingKeys = new Set(cards.map((c) => normalizeCardKey(c.front)));
+  const newFromPreview = (preview ?? []).filter(
+    (p, i, arr) =>
+      !existingKeys.has(normalizeCardKey(p.front)) &&
+      // descarta duplicado dentro da própria lista (mantém a 1ª ocorrência)
+      arr.findIndex((o) => normalizeCardKey(o.front) === normalizeCardKey(p.front)) === i
+  );
+
+  function handleParsePage() {
+    setPreview(parseCardsFromBlocks(getBlocks?.() ?? []));
+  }
+
+  async function handleImport() {
+    if (newFromPreview.length === 0) return;
+    setSaving(true);
+    const now = new Date().toISOString();
+    for (const c of newFromPreview) {
+      await createFlashcard({
+        id: crypto.randomUUID(),
+        page_id: pageId,
+        front: c.front,
+        back: c.back,
+        interval: 1,
+        repetitions: 0,
+        ease_factor: 2.5,
+        next_review: todayStr(),
+        last_reviewed: null,
+        created_at: now,
+      });
+    }
+    setSaving(false);
+    setPreview(null);
+    setCards(await fetchFlashcardsByPage(pageId));
+    onCreated();
+  }
+
+  async function handleExportCsv() {
+    // Exporta na ordem de criação (a lista da tela é mais-recente-primeiro)
+    const csv = flashcardsToAnkiCsv([...cards].reverse());
+    const fileName = `${safeFileName(pageTitle)}-flashcards.csv`;
+    let saved = false;
+    if (isTauri()) {
+      saved = await invoke<boolean>("save_text_file", {
+        suggestedName: fileName,
+        filterName: "CSV",
+        extensions: ["csv"],
+        contents: csv,
+      });
+    } else {
+      // npm run dev no browser: download via blob funciona normalmente
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      saved = true;
+    }
+    if (saved) {
+      setExported(true);
+      setTimeout(() => setExported(false), 2000);
+    }
+  }
+
+  async function handleClearAll() {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmClear(false), 3000);
+      return;
+    }
+    clearTimeout(confirmTimer.current);
+    setConfirmClear(false);
+    await deleteFlashcardsByPage(pageId);
+    setCards([]);
+    onCreated();
+  }
 
   async function handleCreate() {
     if (!front.trim()) return;
@@ -107,7 +200,73 @@ export function CreateFlashcardModal({
           </button>
         </div>
 
-        {cards.length === 0 && (
+        <div className="fc-tools">
+          {getBlocks && (
+            <button className="fc-tool-btn" onClick={handleParsePage} title='Cria um card para cada linha "frente - verso" da página'>
+              <ListPlus size={12} /> Importar da página
+            </button>
+          )}
+          {cards.length > 0 && !isMobile && (
+            <button
+              className="fc-tool-btn"
+              onClick={handleExportCsv}
+              title="Salva um .csv pronto para importar no Anki (Arquivo → Importar)"
+            >
+              <FileDown size={12} /> {exported ? "Exportado ✓" : "Exportar CSV (Anki)"}
+            </button>
+          )}
+          {cards.length > 0 && (
+            <button
+              className={`fc-tool-btn danger${confirmClear ? " confirm" : ""}`}
+              onClick={handleClearAll}
+            >
+              <Trash2 size={12} />
+              {confirmClear ? "Clique de novo p/ confirmar" : `Excluir todos (${cards.length})`}
+            </button>
+          )}
+        </div>
+
+        {preview !== null && (
+          <div className="fc-import-preview">
+            <div className="fc-list-label">
+              {preview.length === 0
+                ? "Nenhum par encontrado"
+                : `${preview.length} ${preview.length === 1 ? "par encontrado" : "pares encontrados"} · ${newFromPreview.length} novos`}
+            </div>
+            {preview.length === 0 ? (
+              <p className="fc-empty-hint">
+                Escreva cada frase numa linha no formato <code>frente - verso</code> (com espaços ao redor do hífen).
+              </p>
+            ) : (
+              <div className="fc-import-list">
+                {preview.map((p, i) => {
+                  const isDup = existingKeys.has(normalizeCardKey(p.front)) ||
+                    preview.findIndex((o) => normalizeCardKey(o.front) === normalizeCardKey(p.front)) !== i;
+                  return (
+                    <div key={i} className={`fc-card-row${isDup ? " fc-import-dup" : ""}`}>
+                      <div className="fc-card-row-text">
+                        <span className="fc-card-front">{p.front}</span>
+                        <span className="fc-card-back">{p.back || "(sem verso)"}</span>
+                      </div>
+                      {isDup && <span className="fc-card-due">já existe</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="fc-import-actions">
+              {newFromPreview.length > 0 && (
+                <button className="fc-create-btn" onClick={handleImport} disabled={saving}>
+                  <ListPlus size={13} />
+                  {saving ? "Importando…" : `Importar ${newFromPreview.length} ${newFromPreview.length === 1 ? "card" : "cards"}`}
+                </button>
+              )}
+              <button className="fc-tool-btn" onClick={() => setPreview(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {cards.length === 0 && preview === null && (
           <p className="fc-empty-hint">
             Selecione um trecho no editor antes de abrir este painel para pré-preencher a frente do card.
           </p>

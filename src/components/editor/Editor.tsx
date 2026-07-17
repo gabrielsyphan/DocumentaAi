@@ -19,6 +19,7 @@ import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
 import { getAllSnippets, saveCustomSnippet, loadCustomSnippets, deleteCustomSnippet, type Snippet } from "../../lib/snippets";
 import { CreateFlashcardModal } from "../flashcards/FlashcardPanel";
+import FindInPageBar from "./FindInPageBar";
 import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
 import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2, Zap } from "lucide-react";
@@ -338,6 +339,9 @@ export default function Editor({ pageId }: Props) {
   const [showFlashcardModal, setShowFlashcardModal] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [showSnippetModal, setShowSnippetModal] = useState(false);
+  const [showFind, setShowFind] = useState(false);
+  const [findFocusSignal, setFindFocusSignal] = useState(0);
+  const [findInitialQuery, setFindInitialQuery] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pendingSnippetBlocks, setPendingSnippetBlocks] = useState<any[]>([]);
 
@@ -611,9 +615,35 @@ export default function Editor({ pageId }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ⌘F / Ctrl+F → busca na página atual; Esc fecha
+  useEffect(() => {
+    function handleFindShortcut(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        // Pré-preenche com o texto selecionado no editor, como nos navegadores
+        setFindInitialQuery(window.getSelection()?.toString().trim() ?? "");
+        setShowFind(true);
+        setFindFocusSignal((t) => t + 1);
+      } else if (e.key === "Escape") {
+        setShowFind(false);
+      }
+    }
+    window.addEventListener("keydown", handleFindShortcut);
+    return () => window.removeEventListener("keydown", handleFindShortcut);
+  }, []);
+
   return (
     <>
       {tts.speaking && <TTSBar tts={tts} />}
+      {showFind && (
+        <FindInPageBar
+          editor={editor}
+          onClose={() => setShowFind(false)}
+          focusSignal={findFocusSignal}
+          initialQuery={findInitialQuery}
+        />
+      )}
       <div className="editor-container">
         <div className="editor-topbar">
           <input
@@ -837,6 +867,7 @@ export default function Editor({ pageId }: Props) {
         <CreateFlashcardModal
           pageId={pageId}
           initialFront={window.getSelection()?.toString() ?? ""}
+          getBlocks={() => editor.document}
           onClose={() => setShowFlashcardModal(false)}
           onCreated={async () => {
             const cards = await fetchFlashcardsByPage(pageId);

@@ -1,6 +1,7 @@
 import { FileText, PenTool, CalendarDays, Search, LayoutTemplate, Star, LayoutGrid, Folder, Clock } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
 import { useIsMobile } from "../../hooks/useIsMobile";
+import { revealInTree } from "../../lib/reveal";
 import type { Page } from "../../types";
 
 interface Props {
@@ -47,7 +48,7 @@ function pageIcon(page: Page) {
 }
 
 export default function HomeScreen({ onSearch, onTemplates }: Props) {
-  const { pages, createPage, createDailyNote, selectPage } = usePagesStore();
+  const { pages, createPage, createDailyNote } = usePagesStore();
   const isMobile = useIsMobile();
 
   const recent = [...pages]
@@ -97,7 +98,7 @@ export default function HomeScreen({ onSearch, onTemplates }: Props) {
             </h2>
             <div className="home-fav-row">
               {favorites.map((p) => (
-                <button key={p.id} className="home-fav-chip" onClick={() => selectPage(p.id)}>
+                <button key={p.id} className="home-fav-chip" onClick={() => revealInTree(p.id)}>
                   <span className="home-fav-icon">{pageIcon(p)}</span>
                   {p.title || "Sem título"}
                 </button>
@@ -117,7 +118,7 @@ export default function HomeScreen({ onSearch, onTemplates }: Props) {
                   key={p.id}
                   className="home-recent-card"
                   style={{ animationDelay: `${0.25 + i * 0.06}s` }}
-                  onClick={() => selectPage(p.id)}
+                  onClick={() => revealInTree(p.id)}
                 >
                   <span className="home-recent-icon">{pageIcon(p)}</span>
                   <span className="home-recent-title">{p.title || "Sem título"}</span>

@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 import { existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { searchKnowledge, listKnowledgeSources, reindexKnowledge } from "./knowledge.js";
 
 // ── Database path ──────────────────────────────────────────────────────────────
 
@@ -50,13 +51,20 @@ function getDbPath(): string {
 }
 
 let _db: Database.Database | undefined;
+let _dbPath: string | undefined;
 
 function getDb(): Database.Database {
   if (!_db) {
-    _db = new Database(getDbPath());
+    _dbPath = getDbPath();
+    _db = new Database(_dbPath);
     _db.pragma("journal_mode = WAL");
   }
   return _db;
+}
+
+function getDbPathCached(): string {
+  if (!_dbPath) getDb();
+  return _dbPath!;
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -291,12 +299,39 @@ const TOOLS = [
       required: ["id"],
     },
   },
+  {
+    name: "search_knowledge",
+    description:
+      "Hybrid search (BM25 keyword + local semantic embeddings) over the user's knowledge base — all their DocumentaAI pages, chunked. " +
+      "USE THIS to answer questions about the user's documents/notes: it returns the most relevant excerpts with their source page. " +
+      "Prefer this over search_pages/search_content for open questions. Index updates automatically.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Natural-language question or keywords (PT or EN)" },
+        max_results: { type: "number", description: "Max excerpts to return (default 5, max 15)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "list_knowledge_sources",
+    description: "List the pages indexed in the knowledge base, with chunk counts and embedding status.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "reindex_knowledge",
+    description:
+      "Force a full rebuild of the knowledge index and compute ALL embeddings before returning (warm-up). " +
+      "First run downloads the embedding model (~112 MB) — may take a few minutes. Normally NOT needed: the index syncs automatically on each search.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ] as const;
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "documentaai", version: "2.0.0" },
+  { name: "documentaai", version: "2.1.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -552,6 +587,60 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       if (!page) return { content: [{ type: "text", text: `Page not found: ${id}` }], isError: true };
       db.prepare("DELETE FROM pages WHERE id = ?").run(id);
       return { content: [{ type: "text", text: `Page "${page.title}" (${id}) deleted.` }] };
+    }
+
+    case "search_knowledge": {
+      const { query, max_results } = args as { query: string; max_results?: number };
+      const k = Math.min(Math.max(max_results ?? 5, 1), 15);
+      try {
+        const { results, note } = await searchKnowledge(db, getDbPathCached(), query, k);
+        if (results.length === 0) {
+          return { content: [{ type: "text", text: `Nenhum resultado para "${query}".${note ? `\n\nNota: ${note}` : ""}` }] };
+        }
+        const text = results
+          .map((r, i) =>
+            `── Resultado ${i + 1} (${r.signals}) ──\n` +
+            `Fonte: "${r.pageTitle}" (page_id: ${r.pageId})\n` +
+            r.text
+          )
+          .join("\n\n");
+        return {
+          content: [{
+            type: "text",
+            text: text + (note ? `\n\nNota: ${note}` : "") +
+              "\n\nDica: use get_page com o page_id para ler a página completa de um resultado.",
+          }],
+        };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Erro na busca: ${e instanceof Error ? e.message : String(e)}` }], isError: true };
+      }
+    }
+
+    case "list_knowledge_sources": {
+      const { lines, status } = listKnowledgeSources(db, getDbPathCached());
+      const text = lines.length
+        ? `${lines.length} página(s) indexada(s):\n${lines.join("\n")}\n\n${status}`
+        : `Nenhuma página indexada ainda (o índice é construído na primeira busca).\n${status}`;
+      return { content: [{ type: "text", text }] };
+    }
+
+    case "reindex_knowledge": {
+      try {
+        const { pages, chunks, embedded } = await reindexKnowledge(db, getDbPathCached());
+        return {
+          content: [{
+            type: "text",
+            text: `Reindexação completa: ${pages} páginas → ${chunks} trechos, ${embedded} embeddings calculados.`,
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{
+            type: "text",
+            text: `Reindexação parcial — o índice léxico (FTS) foi reconstruído, mas os embeddings falharam:\n${e instanceof Error ? e.message : String(e)}\n\nA busca funciona em modo léxico; os embeddings serão tentados de novo na próxima busca.`,
+          }],
+        };
+      }
     }
 
     default:

@@ -302,6 +302,34 @@ async fn pick_backup_save_path(app: tauri::AppHandle, suggested_name: String) ->
     Ok(path.and_then(|p| p.as_path().map(|p| p.to_string_lossy().into_owned())))
 }
 
+/// Opens a save dialog and writes the given text content to the chosen path.
+/// Used for exports where the WebView can't download files (e.g. flashcards → Anki CSV).
+/// Returns false if the user cancelled the dialog.
+#[tauri::command]
+async fn save_text_file(
+    app: tauri::AppHandle,
+    suggested_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+    contents: String,
+) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let exts: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+    let path = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_name)
+        .add_filter(&filter_name, &exts)
+        .blocking_save_file();
+    match path.and_then(|p| p.as_path().map(|p| p.to_path_buf())) {
+        Some(p) => {
+            std::fs::write(&p, contents).map_err(|e| format!("Erro ao salvar: {e}"))?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
+}
+
 /// Opens a file picker and returns the chosen backup path (or None if cancelled).
 #[tauri::command]
 async fn pick_restore_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
@@ -427,6 +455,7 @@ pub fn run() {
                     pick_backup_save_path,
                     pick_restore_file,
                     apply_restore,
+                    save_text_file,
                     sync_server::sync_server_status,
                     sync_server::sync_server_start,
                     sync_server::sync_server_stop,
@@ -444,6 +473,7 @@ pub fn run() {
                     pick_backup_save_path,
                     pick_restore_file,
                     apply_restore,
+                    save_text_file,
                 ]
             }
         })

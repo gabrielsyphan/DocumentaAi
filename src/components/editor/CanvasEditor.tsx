@@ -11,6 +11,22 @@ const Excalidraw = lazy(() =>
   import("@excalidraw/excalidraw").then((m) => ({ default: m.Excalidraw }))
 );
 
+// O fundo do canvas fica "transparent" e quem pinta a cor do tema é a div
+// atrás dele (background: var(--editor-bg)). Não dá para passar a cor do tema
+// no viewBackgroundColor: no modo escuro o Excalidraw aplica um filtro CSS de
+// inversão (invert(93%) hue-rotate(180deg)) no canvas inteiro, então qualquer
+// cor sólida sairia invertida/lavada na tela. Pixels transparentes não são
+// afetados pelo filtro — a cor da div aparece exata e acompanha o tema ao vivo.
+// Cores que versões antigas salvaram como fundo — migradas para transparent.
+const LEGACY_THEME_BGS = new Set([
+  "#1e1e1e", "#ffffff", "#2e3440", "#282a36", "#191724", "#002b36",
+]);
+
+const DEFAULT_APP_STATE = {
+  viewBackgroundColor: "transparent",
+  gridModeEnabled: false,
+};
+
 interface Props {
   pageId: string;
 }
@@ -24,20 +40,17 @@ export default function CanvasEditor({ pageId }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiRef = useRef<any>(null);
 
-  const CANVAS_BG: Record<string, string> = {
-    dark: "#1e1e1e", light: "#ffffff", nord: "#2e3440",
-    dracula: "#282a36", rose: "#191724", solarized: "#002b36",
-  };
-  const DEFAULT_APP_STATE = {
-    viewBackgroundColor: CANVAS_BG[theme] ?? "#1e1e1e",
-    gridModeEnabled: false,
-  };
-
   const initialData = (() => {
     if (!page?.content) return { elements: [], appState: DEFAULT_APP_STATE };
     try {
       const parsed = JSON.parse(page.content);
-      return { ...parsed, appState: { ...DEFAULT_APP_STATE, ...parsed.appState } };
+      const appState = { ...DEFAULT_APP_STATE, ...parsed.appState };
+      // Migração: fundo salvo com cor de tema antiga vira transparente
+      // (cores customizadas pelo usuário no menu do Excalidraw são preservadas)
+      if (LEGACY_THEME_BGS.has(appState.viewBackgroundColor)) {
+        appState.viewBackgroundColor = "transparent";
+      }
+      return { ...parsed, appState };
     } catch {
       return { elements: [], appState: DEFAULT_APP_STATE };
     }
@@ -69,20 +82,6 @@ export default function CanvasEditor({ pageId }: Props) {
   useEffect(() => {
     return () => clearTimeout(saveTimer.current);
   }, []);
-
-  // Acompanha trocas de tema do app: só atualiza o fundo do canvas se ele
-  // ainda for uma cor padrão de algum tema (evita sobrescrever cor customizada
-  // pelo usuário no próprio menu do Excalidraw).
-  useEffect(() => {
-    const api = apiRef.current;
-    if (!api) return;
-    const knownBgColors = Object.values(CANVAS_BG);
-    const current = api.getAppState().viewBackgroundColor;
-    if (knownBgColors.includes(current)) {
-      api.updateScene({ appState: { viewBackgroundColor: CANVAS_BG[theme] ?? "#1e1e1e" } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleChange(elements: readonly any[], appState: any, files: any) {
@@ -131,7 +130,8 @@ export default function CanvasEditor({ pageId }: Props) {
 
       <div className="canvas-area">
         <Suspense fallback={<div className="canvas-loading">Carregando canvas...</div>}>
-          <div style={{ width: "100%", height: "100%" }}>
+          {/* A cor de fundo do tema fica aqui — visível através do canvas transparente */}
+          <div style={{ width: "100%", height: "100%", background: "var(--editor-bg)" }}>
             <Excalidraw
               key={pageId}
               initialData={initialData}
