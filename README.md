@@ -220,7 +220,7 @@ Adicione em `~/.claude.json`:
 
 ## Site
 
-A landing page em [gabrielsyphan.github.io/documentaai](https://gabrielsyphan.github.io/documentaai/) é publicada automaticamente pelo GitHub Pages: qualquer push que altere a pasta `website/` dispara o workflow [`pages.yml`](.github/workflows/pages.yml) e o site atualiza sozinho.
+A landing page em [gabrielsyphan.github.io/documentaai](https://gabrielsyphan.github.io/DocumentaAi/) é publicada automaticamente pelo GitHub Pages: qualquer push que altere a pasta `website/` dispara o workflow [`pages.yml`](.github/workflows/pages.yml) e o site atualiza sozinho.
 
 ---
 
