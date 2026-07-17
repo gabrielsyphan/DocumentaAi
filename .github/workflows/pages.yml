@@ -29,11 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Requer o Pages habilitado uma vez em Settings → Pages → Source: GitHub Actions
+      # (o GITHUB_TOKEN não tem permissão para criar o site do Pages via API)
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          # Habilita o Pages automaticamente na primeira execução
-          enablement: true
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
