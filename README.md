@@ -5,14 +5,19 @@
 <h1 align="center">DocumentaAI</h1>
 
 <p align="center">
-  Ferramenta de documentação pessoal <strong>offline-first</strong> estilo Notion — editor de blocos, daily notes, canvas, flashcards e integração MCP.
+  Ferramenta de documentação pessoal <strong>offline-first</strong> estilo Notion — editor de blocos, daily notes, canvas, flashcards, base de conhecimento para agentes de IA e chat com suas anotações.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-9480f5?style=flat-square" alt="version" />
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="platform" />
+  <a href="https://github.com/gabrielsyphan/documentaai/releases/latest"><img src="https://img.shields.io/github/v/release/gabrielsyphan/documentaai?style=flat-square&color=9480f5" alt="release" /></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Android-lightgrey?style=flat-square" alt="platform" />
   <img src="https://img.shields.io/badge/built%20with-Tauri%20v2-FFC131?style=flat-square&logo=tauri&logoColor=white" alt="tauri" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="license" />
+</p>
+
+<p align="center">
+  🌐 <a href="https://gabrielsyphan.github.io/documentaai/"><strong>Site oficial</strong></a> ·
+  ⬇️ <a href="https://github.com/gabrielsyphan/documentaai/releases/latest"><strong>Downloads</strong></a>
 </p>
 
 ---
@@ -21,46 +26,55 @@
 
 **Editor**
 - Editor de blocos estilo Notion (parágrafos, títulos, listas, tabelas, código com highlight, imagens inline, checkboxes)
-- Hierarquia ilimitada de páginas e subpáginas
+- Hierarquia ilimitada de páginas, subpáginas e pastas
 - Wikilinks `[[página]]` com chip visual e backlinks automáticos
-- Auto-save com debounce — seus dados nunca se perdem
-- Histórico de versões com diff visual e restauração por clique
-- Exportar para Markdown ou PDF
-- Importar arquivos `.md`
+- Busca dentro da página (`⌘F`) com highlights — ignora acentos
+- Auto-save com debounce + histórico de versões com diff visual e restauração
+- Exportar Markdown e **PDF real** (com rodapé numerado); importar arquivos `.md`
+- **Exportar pasta como PDF "livro"**: capa, sumário com número de página, capítulos numerados e divisórias de seção
 
 **Organização**
 - Drag-and-drop para reordenar páginas na sidebar
 - Favoritos, tags com filtro e ordenação por nome/data
 - Busca global (`⌘K`) em todas as páginas
+- Boards estilo Kanban com colunas e cartões
 - Lixeira com soft delete e auto-limpeza após 30 dias
+- Tela de início com ações rápidas, favoritas e recentes
 
 **Daily Notes**
 - Mini-calendário mensal integrado na sidebar
-- Botão "Hoje" cria/abre a nota do dia automaticamente
+- Botão "Hoje" cria/abre a nota do dia; notas vazias são descartadas sozinhas
 - Seção "Agenda do dia" mostra lembretes do dia na nota
 
 **Canvas**
 - Whiteboard com Excalidraw (lazy-loaded)
 - Biblioteca de componentes: básicos, fluxograma, system design, logos de apps, wireframe
-- Zoom automático ao abrir, tema sincronizado, i18n pt-BR
+- Zoom automático ao abrir, fundo acompanha o tema do app, i18n pt-BR
+
+**Estudo**
+- Flashcards com repetição espaçada (SM-2) e badge de revisões pendentes
+- Importar pares `frase - tradução` de uma página como flashcards (com preview e dedup)
+- Exportar deck em CSV pronto para o **Anki**
+- Tradutor embutido (`⌘T`) via Google Cloud Translation, com medidor do free tier
+- Leitura em voz alta com Web Speech API (PT-BR, controle de velocidade)
+
+**IA**
+- **Chat com a base de conhecimento** (`⌘J`): agente que busca nas suas páginas e responde citando as fontes — roda em cima do Claude Code ou Kiro CLI já logados na sua máquina, sem chave de API nem custo extra
+- **Base de conhecimento via MCP**: busca híbrida (BM25 + embeddings locais com `multilingual-e5-small`) sobre todas as páginas, disponível para Claude Code, Kiro, Cursor e qualquer cliente MCP
+- Servidor MCP com CRUD completo de páginas
 
 **Produtividade**
-- Quick Capture global (`⌘⇧Space`) — captura para a daily note sem abrir o app
-- Flashcards com algoritmo SM-2 e badge de revisões pendentes
-- Lembretes por página com date picker inline
-- Snippets / text expand no menu `/`
-- Galeria de templates (Reunião, Review Semanal, Projeto, Bullet Journal…)
-- Modo apresentação (H1 = slide) com navegação por teclado
-- Leitura em voz alta com Web Speech API (PT-BR, controle de velocidade)
-- Modo foco (`⌘⇧F`) — sidebar oculta, tipografia espaçada
+- Quick Capture global (`⌘⇧Space`) — captura para a daily note sem abrir o app, com transcrição por voz no macOS
+- Lembretes por página, snippets no menu `/`, galeria de templates
+- Modo apresentação (H1 = slide) e modo foco (`⌘⇧F`)
 - Graph view com D3 — mapa de conexões entre páginas
 - Temas de cor: Escuro, Claro, Nord, Dracula, Rosé Pine, Solarized
-- Backup e restauração do banco de dados com um clique
+- Backup/restauração do banco com um clique e notas de atualização no app
 
-**MCP (IA)**
-- Servidor MCP integrado em `mcp-server/` compatível com Claude Code, Kiro, Cursor e qualquer cliente MCP
-- Ferramentas: `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`, `delete_page`
-- Auto-refresh da sidebar ao ganhar foco após operações via MCP
+**Mobile e sync**
+- App **Android** com o mesmo banco (sidebar vira drawer, touch targets maiores)
+- **Sync por rede local** desktop ↔ celular — sem nuvem, sem conta
+- Auto-update no desktop via releases do GitHub
 
 ---
 
@@ -68,20 +82,31 @@
 
 | Camada | Tecnologia |
 |---|---|
-| Desktop runtime | [Tauri v2](https://tauri.app) (Rust) |
+| Desktop/mobile runtime | [Tauri v2](https://tauri.app) (Rust) |
 | Frontend | React 19 + TypeScript + Vite |
 | Editor | [BlockNote](https://www.blocknotejs.org) |
 | Canvas | [Excalidraw](https://excalidraw.com) |
 | Estilo | Tailwind CSS v4 |
 | Estado | Zustand |
 | Banco de dados | SQLite via `tauri-plugin-sql` |
+| Busca semântica | FTS5 + [transformers.js](https://huggingface.co/docs/transformers.js) (embeddings em CPU) |
+| PDF | pdfmake |
+| Sync local | axum (HTTP na LAN) |
 | Ícones | Lucide React |
 | Syntax highlight | Shiki |
 | Graph view | D3 v7 |
 
 ---
 
-## Pré-requisitos
+## Download
+
+Instaladores para **macOS (Apple Silicon)**, **Windows** e **Linux (AppImage)** na [página de releases](https://github.com/gabrielsyphan/documentaai/releases/latest). O app se atualiza sozinho nas versões seguintes.
+
+> O APK Android está temporariamente fora dos releases (build em manutenção); versões anteriores continuam funcionando e sincronizando normalmente.
+
+---
+
+## Pré-requisitos (desenvolvimento)
 
 - **Node.js** >= 18 — [nodejs.org](https://nodejs.org)
 - **Rust** — instale via [rustup.rs](https://rustup.rs):
@@ -128,11 +153,13 @@ O banco SQLite fica salvo em:
 | Linux | `~/.local/share/com.documentaai.app/documentaai.db` |
 | Windows | `%APPDATA%\com.documentaai.app\documentaai.db` |
 
+O índice da base de conhecimento (`knowledge.db`) fica na mesma pasta — é derivado e pode ser apagado sem perda (reconstrói sozinho).
+
 ---
 
 ## Integração MCP
 
-O DocumentaAI inclui um servidor MCP que permite que ferramentas de IA leiam e escrevam páginas diretamente, sem precisar que o app esteja aberto.
+O DocumentaAI inclui um servidor MCP que permite que ferramentas de IA leiam, escrevam e **busquem semanticamente** nas páginas, sem precisar que o app esteja aberto.
 
 > **Requisito:** Node.js >= 18 instalado na máquina ([nodejs.org](https://nodejs.org))
 
@@ -176,12 +203,24 @@ Adicione em `~/.claude.json`:
 
 | Ferramenta | Descrição |
 |---|---|
-| `list_pages` | Lista todas as páginas com título, emoji e hierarquia |
+| `search_knowledge` | **Busca híbrida (palavras-chave + semântica)** — retorna os trechos mais relevantes com a página-fonte |
+| `list_knowledge_sources` | Lista as páginas indexadas na base de conhecimento |
+| `reindex_knowledge` | Reconstrói o índice e calcula todos os embeddings (warm-up) |
+| `list_pages` / `list_children` | Lista páginas com título, emoji e hierarquia |
 | `get_page` | Retorna o conteúdo completo de uma página |
-| `search_pages` | Busca páginas por título |
-| `create_page` | Cria uma nova página (texto simples ou BlockNote JSON) |
-| `update_page` | Atualiza título, conteúdo ou emoji |
-| `delete_page` | Remove uma página e todas as subpáginas |
+| `search_pages` / `search_content` | Busca por título ou texto simples |
+| `create_page` / `update_page` / `delete_page` | CRUD de páginas (texto simples ou BlockNote JSON) |
+| `append_to_page` | Acrescenta linhas sem sobrescrever o conteúdo |
+| `move_page` / `manage_tags` | Reorganiza hierarquia e tags |
+| `get_daily_note` | Abre (ou cria) a daily note de uma data |
+
+> Na primeira busca semântica, o modelo de embeddings (~112 MB) é baixado uma única vez para `~/.cache/huggingface` — depois disso tudo roda offline, em CPU.
+
+---
+
+## Site
+
+A landing page em [gabrielsyphan.github.io/documentaai](https://gabrielsyphan.github.io/documentaai/) é publicada automaticamente pelo GitHub Pages: qualquer push que altere a pasta `website/` dispara o workflow [`pages.yml`](.github/workflows/pages.yml) e o site atualiza sozinho.
 
 ---
 
@@ -191,17 +230,26 @@ Adicione em `~/.claude.json`:
 documentaai/
 ├── src/                        # Frontend React
 │   ├── components/
-│   │   ├── editor/             # BlockNote + Excalidraw + extensões
-│   │   ├── sidebar/            # Árvore de páginas + daily notes
+│   │   ├── editor/             # BlockNote + Excalidraw + boards + pastas
+│   │   ├── sidebar/            # Árvore de páginas + daily notes + lixeira
+│   │   ├── chat/               # Chat com a base de conhecimento
+│   │   ├── translate/          # Tradutor embutido
+│   │   ├── flashcards/         # Criação, revisão, import e export
+│   │   ├── changelog/          # Notas de atualização
+│   │   ├── home/               # Tela de início
 │   │   └── layout/             # AppShell, titlebar
 │   ├── store/                  # Estado global (Zustand)
-│   ├── lib/                    # db.ts, export, tags, templates…
+│   ├── lib/                    # db, export, pdf-export, translate, changelog…
 │   └── types/
 ├── src-tauri/                  # Backend Rust (Tauri)
-│   ├── src/lib.rs              # Comandos + atalho global + tray
-│   ├── Cargo.toml
-│   └── tauri.conf.json
+│   ├── src/lib.rs              # Comandos + atalho global + tray + speech
+│   ├── src/chat_agent.rs       # Spawn do agente CLI (Claude/Kiro) p/ o chat
+│   ├── src/sync_server.rs      # Servidor HTTP de sync na LAN
+│   └── gen/android/            # Projeto Android
 ├── mcp-server/                 # Servidor MCP (Node.js)
+│   ├── index.ts                # Tools CRUD + registro
+│   └── knowledge.ts            # Base de conhecimento (FTS5 + embeddings)
+├── website/                    # Landing page (publicada via GitHub Pages)
 └── CLAUDE.md                   # Contexto para desenvolvimento com IA
 ```
 
