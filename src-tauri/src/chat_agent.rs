@@ -8,7 +8,7 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 pub struct ChatState(pub Arc<Mutex<Option<Child>>>);
 
@@ -61,12 +61,24 @@ fn engine_bin_name(engine: &str) -> &'static str {
     if engine == "kiro" { "kiro-cli" } else { "claude" }
 }
 
-/// Caminho do mcp-server: override do usuário (config no app) ou o caminho de
+/// Pasta onde o "Instalar automaticamente" coloca o mcp-server
+fn mcp_install_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("mcp-server-install"))
+}
+
+/// Caminho do mcp-server, na ordem: override do usuário (config no app),
+/// instalação automática (pasta de dados do app) ou o caminho de
 /// desenvolvimento (repo local, resolvido em tempo de compilação).
-fn resolve_mcp_path(override_path: Option<&str>) -> Option<String> {
+fn resolve_mcp_path(app: &tauri::AppHandle, override_path: Option<&str>) -> Option<String> {
     if let Some(p) = override_path {
         if !p.trim().is_empty() && std::path::Path::new(p.trim()).exists() {
             return Some(p.trim().to_string());
+        }
+    }
+    if let Some(dir) = mcp_install_dir(app) {
+        let installed = dir.join("mcp-server").join("dist").join("index.js");
+        if installed.exists() {
+            return Some(installed.to_string_lossy().into_owned());
         }
     }
     let dev_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../mcp-server/dist/index.js");
@@ -94,15 +106,103 @@ pub struct EngineCheck {
 }
 
 #[tauri::command]
-pub fn chat_agent_check(engine: String, mcp_path_override: Option<String>) -> EngineCheck {
+pub fn chat_agent_check(
+    app: tauri::AppHandle,
+    engine: String,
+    mcp_path_override: Option<String>,
+) -> EngineCheck {
     let bin = resolve_bin(engine_bin_name(&engine));
-    let mcp = resolve_mcp_path(mcp_path_override.as_deref());
+    let mcp = resolve_mcp_path(&app, mcp_path_override.as_deref());
     EngineCheck {
         available: bin.is_some(),
         bin_path: bin,
         mcp_ok: mcp.is_some(),
         mcp_path: mcp,
     }
+}
+
+// ── Instalação automática do mcp-server ───────────────────────────────────────
+// Baixa o pacote do último release do GitHub, extrai na pasta de dados do app
+// e roda npm install + build. Emite "mcp-install-progress" a cada etapa.
+
+const MCP_ZIP_URL: &str =
+    "https://github.com/gabrielsyphan/documentaai/releases/latest/download/documentaai-mcp-server.zip";
+
+fn run_step(cmd: &mut Command, what: &str) -> Result<(), String> {
+    let out = cmd.output().map_err(|e| format!("{what}: {e}"))?;
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        let tail: String = err.lines().rev().take(4).collect::<Vec<_>>().into_iter().rev()
+            .collect::<Vec<_>>().join("\n");
+        return Err(format!("{what} falhou:\n{tail}"));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn install_mcp_server(app: tauri::AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let emit = |stage: &str| { let _ = app.emit("mcp-install-progress", stage); };
+
+        // O mcp-server roda em Node — precisa dele (e do npm) na máquina
+        let npm = resolve_bin("npm")
+            .ok_or("Node.js/npm não encontrados. Instale em nodejs.org e tente de novo.")?;
+        resolve_bin("node")
+            .ok_or("Node.js não encontrado. Instale em nodejs.org e tente de novo.")?;
+
+        let dir = mcp_install_dir(&app).ok_or("Pasta de dados do app indisponível")?;
+        // Instalação limpa: remove restos de tentativas anteriores
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("Criar pasta: {e}"))?;
+        let zip_path = dir.join("mcp-server.zip");
+
+        emit("download");
+        run_step(
+            Command::new("curl").args(["-sL", "-f", "-o"]).arg(&zip_path).arg(MCP_ZIP_URL),
+            "Download do pacote",
+        )?;
+
+        emit("extract");
+        // Extração com ferramentas nativas de cada SO (sem dependência de crate)
+        #[cfg(target_os = "macos")]
+        run_step(Command::new("ditto").args(["-x", "-k"]).arg(&zip_path).arg(&dir), "Extração")?;
+        #[cfg(target_os = "windows")]
+        run_step(Command::new("tar").arg("-xf").arg(&zip_path).arg("-C").arg(&dir), "Extração")?;
+        #[cfg(all(unix, not(target_os = "macos")))]
+        run_step(Command::new("unzip").arg("-o").arg(&zip_path).arg("-d").arg(&dir), "Extração")?;
+
+        let server_dir = dir.join("mcp-server");
+        if !server_dir.exists() {
+            return Err("Pacote extraído mas a pasta mcp-server não foi encontrada".into());
+        }
+
+        emit("install");
+        run_step(
+            Command::new(&npm)
+                .args(["install", "--no-audit", "--no-fund"])
+                .current_dir(&server_dir)
+                .env("PATH", augmented_path()),
+            "npm install",
+        )?;
+
+        emit("build");
+        run_step(
+            Command::new(&npm)
+                .args(["run", "build"])
+                .current_dir(&server_dir)
+                .env("PATH", augmented_path()),
+            "Compilação (npm run build)",
+        )?;
+
+        let dist = server_dir.join("dist").join("index.js");
+        if !dist.exists() {
+            return Err("Build terminou mas dist/index.js não foi gerado".into());
+        }
+        let _ = std::fs::remove_file(&zip_path);
+        Ok(dist.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|e| format!("Tarefa de instalação falhou: {e}"))?
 }
 
 #[tauri::command]
@@ -136,7 +236,7 @@ pub fn chat_agent_send(
     if engine == "kiro" {
         cmd.args(["chat", "--no-interactive", &prompt]);
     } else {
-        let mcp_path = resolve_mcp_path(mcp_path_override.as_deref())
+        let mcp_path = resolve_mcp_path(&app, mcp_path_override.as_deref())
             .ok_or("Caminho do mcp-server não encontrado. Configure-o nas opções do chat.")?;
         let mcp_config = format!(
             r#"{{"mcpServers":{{"documentaai":{{"command":"node","args":["{}"]}}}}}}"#,

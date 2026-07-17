@@ -4,6 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   MessageSquareText, X as XIcon, Send, Square, Plus,
   Search as SearchIcon, FileText, AlertTriangle, ChevronDown,
+  Download, Loader2, Check as CheckIcon,
 } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
 
@@ -30,6 +31,13 @@ const MCP_PATH_STORAGE = "documentaai-chat-mcp-path";
 
 const ENGINE_LABELS: Record<Engine, string> = { claude: "Claude", kiro: "Kiro CLI" };
 
+const INSTALL_STAGES: Record<string, string> = {
+  download: "Baixando o pacote do GitHub…",
+  extract: "Extraindo…",
+  install: "Instalando dependências (npm install)…",
+  build: "Compilando…",
+};
+
 function toolLabel(name: string, input: Record<string, unknown>): { name: string; detail: string } {
   const short = name.replace("mcp__documentaai__", "");
   const detail =
@@ -45,6 +53,9 @@ export default function ChatPanel({ open, onClose }: Props) {
   const [check, setCheck] = useState<EngineCheck | null>(null);
   const [showEngineMenu, setShowEngineMenu] = useState(false);
   const [mcpPathInput, setMcpPathInput] = useState("");
+  const [installStage, setInstallStage] = useState<string | null>(null);
+  const [installDone, setInstallDone] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
   const [items, setItems] = useState<ChatItem[]>([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
@@ -146,6 +157,7 @@ export default function ChatPanel({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const unlisteners: UnlistenFn[] = [];
+    listen<string>("mcp-install-progress", (e) => setInstallStage(e.payload)).then((u) => unlisteners.push(u));
     listen<string>("chat-agent-line", (e) => handleLine(e.payload)).then((u) => unlisteners.push(u));
     listen<{ code: number; stderr: string }>("chat-agent-done", (e) => {
       setRunning(false);
@@ -201,6 +213,21 @@ export default function ChatPanel({ open, onClose }: Props) {
   function handleSaveMcpPath() {
     localStorage.setItem(MCP_PATH_STORAGE, mcpPathInput.trim());
     runCheck(engine);
+  }
+
+  async function handleAutoInstall() {
+    setInstallError(null);
+    setInstallStage("download");
+    try {
+      await invoke<string>("install_mcp_server");
+      setInstallDone(true);
+      setInstallStage(null);
+      // o caminho instalado é resolvido automaticamente pelo check
+      await runCheck(engine);
+    } catch (e) {
+      setInstallStage(null);
+      setInstallError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   // Clique num título de página citado → abre a página (se existir)
@@ -264,22 +291,59 @@ export default function ChatPanel({ open, onClose }: Props) {
             ) : (
               <>
                 <p className="chat-setup-title">
-                  <AlertTriangle size={13} /> mcp-server não encontrado
+                  <AlertTriangle size={13} /> Servidor da base de conhecimento não instalado
                 </p>
                 <p className="chat-setup-text">
-                  Informe o caminho completo do <code>mcp-server/dist/index.js</code> (dentro da pasta do
-                  projeto DocumentaAI):
+                  O chat usa o <strong>mcp-server</strong> do DocumentaAI para buscar nas suas páginas.
+                  Ele pode ser instalado automaticamente — só precisa do{" "}
+                  <strong>Node.js</strong> na máquina (nodejs.org).
                 </p>
-                <div className="chat-setup-form">
-                  <input
-                    className="chat-setup-input"
-                    placeholder="/caminho/para/documentaai/mcp-server/dist/index.js"
-                    value={mcpPathInput}
-                    onChange={(e) => setMcpPathInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSaveMcpPath()}
-                  />
-                  <button className="chat-setup-save" onClick={handleSaveMcpPath}>Salvar</button>
-                </div>
+
+                {installStage ? (
+                  <div className="chat-install-progress">
+                    <Loader2 size={14} className="chat-install-spinner" />
+                    <div>
+                      <p className="chat-install-stage">
+                        {INSTALL_STAGES[installStage] ?? "Instalando…"}
+                      </p>
+                      <p className="chat-install-hint">
+                        Leva menos de um minuto. Não feche o app.
+                      </p>
+                    </div>
+                  </div>
+                ) : installDone ? (
+                  <p className="chat-install-ok">
+                    <CheckIcon size={13} /> Instalado! Abrindo o chat…
+                  </p>
+                ) : (
+                  <button className="chat-install-btn" onClick={handleAutoInstall}>
+                    <Download size={14} /> Instalar automaticamente
+                  </button>
+                )}
+
+                {installError && <p className="chat-error" style={{ margin: "10px 0 0" }}>{installError}</p>}
+
+                <details className="chat-setup-manual">
+                  <summary>Configurar manualmente (avançado)</summary>
+                  <ol className="chat-setup-steps">
+                    <li>
+                      Baixe <code>documentaai-mcp-server.zip</code> na página de releases do GitHub
+                      (github.com/gabrielsyphan/documentaai/releases) e extraia numa pasta permanente
+                    </li>
+                    <li>Dentro da pasta extraída, rode <code>npm install</code> e depois <code>npm run build</code></li>
+                    <li>Cole abaixo o caminho completo até <code>dist/index.js</code>:</li>
+                  </ol>
+                  <div className="chat-setup-form">
+                    <input
+                      className="chat-setup-input"
+                      placeholder="/caminho/para/mcp-server/dist/index.js"
+                      value={mcpPathInput}
+                      onChange={(e) => setMcpPathInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSaveMcpPath()}
+                    />
+                    <button className="chat-setup-save" onClick={handleSaveMcpPath}>Salvar</button>
+                  </div>
+                </details>
               </>
             )}
           </div>

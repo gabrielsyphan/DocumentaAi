@@ -499,8 +499,13 @@ no botão, que agora fica dentro do menu).
       `--disallowedTools` bloqueia Bash/Write/Edit/Read/Web e as tools de escrita
       do MCP; `--append-system-prompt` manda citar páginas-fonte em PT
 - [x] Resolução de binários fora do PATH de GUI (~/.local/bin, /opt/homebrew/bin…);
-      caminho do mcp-server: override em localStorage ou path de dev
-      (CARGO_MANIFEST_DIR) — tela de setup no painel se faltar CLI/mcp-server
+      caminho do mcp-server na ordem: override em localStorage → instalação
+      automática (app_data_dir/mcp-server-install) → path de dev (CARGO_MANIFEST_DIR)
+- [x] **Instalação automática do mcp-server** na tela de setup do chat (app
+      instalado não tem o repo): comando `install_mcp_server` baixa o zip do
+      último release via curl, extrai (ditto/tar/unzip por SO), roda npm
+      install+build na pasta de dados do app e emite progresso
+      (`mcp-install-progress`); fallback manual em `<details>` com passo a passo
 - [x] Chips de tool use ("search_knowledge: …"), títulos em **negrito** citados
       viram link que abre a página, botão parar (kill), nova conversa
 

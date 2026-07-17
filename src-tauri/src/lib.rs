@@ -496,6 +496,7 @@ pub fn run() {
                     chat_agent::chat_agent_check,
                     chat_agent::chat_agent_send,
                     chat_agent::chat_agent_cancel,
+                    chat_agent::install_mcp_server,
                 ]
             }
             #[cfg(mobile)]

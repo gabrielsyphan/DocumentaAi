@@ -12,6 +12,15 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.5.1",
+    date: "2026-07-17",
+    title: "Chat sem fricção",
+    items: [
+      "O chat com a base agora se instala sozinho: se o servidor de busca (mcp-server) não estiver na máquina, um clique em \"Instalar automaticamente\" baixa, instala e compila tudo (requer Node.js)",
+      "Tela de configuração do chat com passo a passo manual como alternativa",
+    ],
+  },
+  {
     version: "1.5.0",
     date: "2026-07-17",
     title: "Chat com suas anotações e PDFs de estudo",
