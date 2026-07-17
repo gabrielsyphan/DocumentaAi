@@ -33,10 +33,8 @@ jobs:
                 '| macOS Apple Silicon | `documentaai-macos.dmg` |',
                 '| Windows | `documentaai-windows.exe` |',
                 '| Linux | `documentaai-linux.AppImage` |',
-                '| Android | `documentaai-android.apk` |',
                 '',
-                '**Android:** baixe o APK no celular e toque para instalar',
-                '(permita "instalar de fontes desconhecidas" se solicitado).',
+                '_APK Android temporariamente indisponível neste release._',
                 '',
                 '## Integração MCP (opcional)',
                 '',
@@ -136,6 +134,9 @@ jobs:
           gh release upload "${{ github.ref_name }}" "${{ matrix.artifact_name }}" --clobber
 
   build-android:
+    # Desativado temporariamente — o build Android está falhando.
+    # Para reativar: remova a linha "if: false" abaixo.
+    if: false
     needs: create-release
     runs-on: ubuntu-latest
     steps:
