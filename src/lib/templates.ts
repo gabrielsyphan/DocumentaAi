@@ -196,6 +196,35 @@ export const BUILT_IN_TEMPLATES: Template[] = [
       bullet(""),
     ],
   },
+  {
+    id: "english-journal",
+    name: "Diário em inglês",
+    icon: "Languages",
+    isLucideIcon: true,
+    description: "Writing practice: escreva sobre o seu dia e peça correção no chat (⌘J)",
+    content: [
+      h(2, "English Journal"),
+      p(t("Write in English about your day. Don't stop to fix mistakes — finish first, then open the chat (⌘J) and use \"Corrigir meu inglês\" to get feedback.", { italic: true })),
+      p(),
+      h(3, "How was your day?"),
+      p(t("")),
+      p(),
+      h(3, "Three things I did today"),
+      num(""),
+      num(""),
+      num(""),
+      p(),
+      h(3, "New words or expressions I want to use"),
+      bullet(""),
+      bullet(""),
+      p(),
+      p(
+        t("Dica: a correção sugere flashcards no formato ", { italic: true }),
+        t("expressão - significado", { code: true }),
+        t(" — cole essas linhas aqui e use \"Importar da página\" no painel de flashcards.", { italic: true })
+      ),
+    ],
+  },
 ];
 
 // ── Custom templates (localStorage) ──────────────────────────────────────────

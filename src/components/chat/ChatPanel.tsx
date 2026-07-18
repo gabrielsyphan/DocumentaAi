@@ -4,9 +4,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   MessageSquareText, X as XIcon, Send, Square, Plus,
   Search as SearchIcon, FileText, AlertTriangle, ChevronDown,
-  Download, Loader2, Check as CheckIcon,
+  Download, Loader2, Check as CheckIcon, Languages,
 } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
+import { extractParagraphs } from "../../lib/tts";
 
 interface Props {
   open: boolean;
@@ -48,7 +49,7 @@ function toolLabel(name: string, input: Record<string, unknown>): { name: string
 }
 
 export default function ChatPanel({ open, onClose }: Props) {
-  const { selectPage, pages } = usePagesStore();
+  const { selectPage, pages, selectedPageId } = usePagesStore();
   const [engine, setEngine] = useState<Engine>("claude");
   const [check, setCheck] = useState<EngineCheck | null>(null);
   const [showEngineMenu, setShowEngineMenu] = useState(false);
@@ -178,12 +179,21 @@ export default function ChatPanel({ open, onClose }: Props) {
 
   if (!open) return null;
 
-  async function handleSend() {
-    const prompt = input.trim();
-    if (!prompt || running) return;
-    setInput("");
+  // Página aberta no editor (o editor atualiza o store a cada tecla, então o
+  // conteúdo aqui está sempre fresco)
+  const currentPage = pages.find((p) => p.id === selectedPageId);
+  let currentPageText = "";
+  if (currentPage?.content && currentPage.type !== "canvas") {
+    try {
+      currentPageText = extractParagraphs(JSON.parse(currentPage.content)).join("\n");
+    } catch { /* conteúdo inválido — sem quick action */ }
+  }
+
+  // `display` é o que aparece na bolha do usuário; `prompt` é o que vai ao agente
+  async function sendPrompt(prompt: string, display: string) {
+    if (running) return;
     setError(null);
-    setItems((prev) => [...prev, { kind: "user", text: prompt }]);
+    setItems((prev) => [...prev, { kind: "user", text: display }]);
     setRunning(true);
     try {
       await invoke("chat_agent_send", {
@@ -196,6 +206,35 @@ export default function ChatPanel({ open, onClose }: Props) {
       setRunning(false);
       setError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  async function handleSend() {
+    const prompt = input.trim();
+    if (!prompt || running) return;
+    setInput("");
+    await sendPrompt(prompt, prompt);
+  }
+
+  function handleCorrectEnglish() {
+    if (!currentPage || !currentPageText.trim()) return;
+    const title = currentPage.title || "Sem título";
+    const prompt = [
+      `Aja como um professor de inglês corrigindo o texto de um aluno brasileiro. Neste pedido NÃO consulte a base de conhecimento — trabalhe apenas com o texto abaixo, vindo da página "${title}".`,
+      "",
+      "Responda em português, nesta estrutura:",
+      "1. **Versão corrigida** — o texto reescrito em inglês natural, mantendo o estilo do aluno.",
+      '2. **Erros e explicações** — para cada erro relevante (gramática, vocabulário, naturalidade), mostre "errado → certo" e explique em uma frase curta o porquê.',
+      "3. **Flashcards sugeridos** — 3 a 6 linhas no formato `expressão correta em inglês - tradução ou lembrete do erro` (hífen cercado de espaços, uma linha por card), prontas para o aluno importar como flashcards.",
+      "",
+      "Se o texto não estiver em inglês ou estiver vazio, apenas diga isso.",
+      "Formate para um chat simples: sem títulos markdown (#), sem tabelas e sem blocos de código — apenas **negrito** e listas.",
+      "",
+      "Texto do aluno:",
+      '"""',
+      currentPageText.slice(0, 8000),
+      '"""',
+    ].join("\n");
+    sendPrompt(prompt, `Corrigir meu inglês — página "${title}"`);
   }
 
   function handleStop() {
@@ -383,6 +422,20 @@ export default function ChatPanel({ open, onClose }: Props) {
             </div>
 
             {error && <p className="chat-error">{error}</p>}
+
+            {currentPage && currentPageText.trim() && !running && (
+              <div className="chat-quick-row">
+                <button
+                  className="chat-quick-chip"
+                  onClick={handleCorrectEnglish}
+                  title="Envia o texto da página aberta para o agente corrigir como professor de inglês"
+                >
+                  <Languages size={12} />
+                  Corrigir meu inglês
+                  <span className="chat-quick-page">{currentPage.title || "Sem título"}</span>
+                </button>
+              </div>
+            )}
 
             <div className="chat-input-row">
               <textarea

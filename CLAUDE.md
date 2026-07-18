@@ -187,7 +187,7 @@ cd mcp-server && npm install && npm run build
 
 #### Templates ✅ concluído
 - [x] Galeria de templates pré-prontos: Reunião, Review Semanal, Planejamento de Projeto,
-      Bullet Journal, Anotações de Estudo — em `src/lib/templates.ts`
+      Bullet Journal, Anotações de Estudo, Diário em inglês — em `src/lib/templates.ts`
 - [x] Botão "Templates" na sidebar abre o modal `TemplateGallery`
 - [x] Cria página com título, emoji e conteúdo do template (IDs de bloco removidos para
       evitar conflitos — `stripBlockIds`)
@@ -285,6 +285,18 @@ cd mcp-server && npm install && npm run build
 - [x] **Exportar CSV (Anki)**: gera `.csv` com diretivas `#separator`/`#html` que o
       Anki importa direto; salva via comando Rust `save_text_file` (dialog nativo,
       pois o WebView não baixa arquivos) — desktop-only
+- [x] **Exportar PDF de estudo** (`src/lib/flashcard-pdf.ts`, menu no painel de
+      flashcards, desktop-only) em três formatos: **folha de estudo** (tabela
+      frente|verso com linha central de dobra para se testar), **cartões
+      recortáveis** (grade 2×4 com bordas tracejadas; frentes e versos em páginas
+      alternadas com colunas espelhadas — imprimindo duplex "virar na borda
+      longa" os lados coincidem ao recortar) e **quiz com gabarito** (perguntas
+      numeradas com linha para escrever; respostas em página separada, 2 colunas).
+      Cards com `ease_factor < 2.4` já revisados ganham marcador `•` roxo e
+      destaque ("cards que você mais erra"). Reusa pdfmake/salvamento de
+      `pdf-export.ts`; marcador é `•` porque a Roboto não tem o glifo ★; a última
+      pergunta do quiz tem margem 0 para não vazar página em branco antes do
+      `pageBreak` do gabarito
 
 #### Graph view ✅ concluído
 - [x] Modal fullscreen com grafo de força (D3 v7 + SVG), lazy-loaded
@@ -508,6 +520,13 @@ no botão, que agora fica dentro do menu).
       (`mcp-install-progress`); fallback manual em `<details>` com passo a passo
 - [x] Chips de tool use ("search_knowledge: …"), títulos em **negrito** citados
       viram link que abre a página, botão parar (kill), nova conversa
+- [x] **Corrigir meu inglês** (estudo de idiomas): chip acima do input do chat
+      quando há página aberta com texto — envia o texto da página (extraído via
+      `extractParagraphs` do tts.ts, cap 8k chars) com prompt de professor de
+      inglês: versão corrigida, erros "errado → certo" explicados em PT e
+      flashcards sugeridos no formato `expressão - significado` (compatível com
+      "Importar da página"); a bolha do usuário mostra só um rótulo curto
+      (display ≠ prompt via `sendPrompt`); par do template "Diário em inglês"
 
 ### Fase 15 — Sync na nuvem (futuro distante)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)

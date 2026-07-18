@@ -12,6 +12,17 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.6.0",
+    date: "2026-07-18",
+    title: "Modo estudo de idiomas",
+    items: [
+      "Flashcards em PDF: novo menu \"Exportar PDF\" no painel de flashcards com três formatos de estudo — folha de estudo (frente | verso com linha de dobra para se testar), cartões recortáveis (frente e verso alinhados para impressão duplex) e quiz com gabarito",
+      "Os cards que você mais erra ganham destaque nos PDFs, com base no seu histórico de revisões",
+      "Corrigir meu inglês: com uma página aberta, um clique no chat (⌘J) envia o seu texto para correção — versão corrigida, erros explicados em português e flashcards sugeridos prontos para importar",
+      "Novo template \"Diário em inglês\" para praticar escrita todos os dias",
+    ],
+  },
+  {
     version: "1.5.1",
     date: "2026-07-17",
     title: "Chat sem fricção",

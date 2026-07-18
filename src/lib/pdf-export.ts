@@ -193,7 +193,7 @@ function footer(currentPage: number, pageCount: number): any {
   };
 }
 
-async function generateAndSave(docDefinition: any, fileName: string): Promise<boolean> {
+export async function generateAndSave(docDefinition: any, fileName: string): Promise<boolean> {
   const pdfMake = await getPdfMake();
   const base64: string = await pdfMake.createPdf(docDefinition).getBase64();
   if (isTauri()) {
@@ -221,14 +221,14 @@ function safeFileName(title: string): string {
 
 // A Roboto (única fonte embutida) não tem glifos de emoji — no PDF eles viram
 // espaço em branco. Melhor removê-los dos títulos.
-function stripEmoji(text: string): string {
+export function stripEmoji(text: string): string {
   return text
     .replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{2BFF}\u{FE0F}\u{200D}]/gu, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
 
-function todayLong(): string {
+export function todayLong(): string {
   return new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
 }
 

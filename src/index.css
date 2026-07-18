@@ -2777,6 +2777,44 @@ html, body, #root {
   white-space: pre-wrap;
 }
 
+/* ── Quick actions (ex.: corrigir inglês da página atual) ── */
+.chat-quick-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+
+.chat-quick-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.chat-quick-chip:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-active);
+  border-color: var(--accent);
+}
+
+.chat-quick-chip svg { flex-shrink: 0; color: var(--accent); }
+
+.chat-quick-page {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.6;
+}
+
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -3817,6 +3855,59 @@ html, body, #root {
   background: var(--sidebar-hover);
   color: var(--sidebar-text-active);
 }
+
+.fc-tool-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Menu "Exportar PDF" (formatos de estudo) ── */
+.fc-export-wrap { position: relative; }
+
+.fc-export-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+.fc-export-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  min-width: 230px;
+  padding: 4px;
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fc-export-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text-active);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fc-export-item svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+
+.fc-export-item span { display: flex; flex-direction: column; gap: 1px; }
+
+.fc-export-item small {
+  font-size: 10.5px;
+  color: var(--sidebar-text);
+}
+
+.fc-export-item:hover { background: var(--sidebar-hover); }
 
 .fc-tool-btn.danger { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
 .fc-tool-btn.danger:hover { background: rgba(248, 113, 113, 0.12); color: #f87171; }

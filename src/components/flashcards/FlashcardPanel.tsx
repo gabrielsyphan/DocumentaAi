@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, X, RotateCcw, Check, Trophy, Plus, Trash2, ListPlus, FileDown } from "lucide-react";
+import { BookOpen, X, RotateCcw, Check, Trophy, Plus, Trash2, ListPlus, FileDown, FileText, Table2, Scissors, PenLine } from "lucide-react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Flashcard } from "../../types";
 import { usePagesStore } from "../../store/pages.store";
@@ -15,6 +15,7 @@ import {
 } from "../../lib/db";
 import { sm2, nextReviewDate, todayStr } from "../../lib/sm2";
 import { parseCardsFromBlocks, normalizeCardKey, flashcardsToAnkiCsv, safeFileName, type ParsedCard } from "../../lib/flashcard-import";
+import { exportStudySheetPdf, exportCutCardsPdf, exportQuizPdf } from "../../lib/flashcard-pdf";
 
 // ── Contador de cards pendentes ───────────────────────────────────────────────
 
@@ -51,6 +52,8 @@ export function CreateFlashcardModal({
   const [preview, setPreview] = useState<ParsedCard[] | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [exported, setExported] = useState(false);
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const confirmTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pageTitle = usePagesStore((s) => s.pages.find((p) => p.id === pageId)?.title) ?? "";
   const isMobile = useIsMobile();
@@ -121,6 +124,20 @@ export function CreateFlashcardModal({
     if (saved) {
       setExported(true);
       setTimeout(() => setExported(false), 2000);
+    }
+  }
+
+  async function handleExportPdf(kind: "sheet" | "cards" | "quiz") {
+    setPdfMenuOpen(false);
+    setPdfBusy(true);
+    // Ordem de criação (a lista da tela é mais-recente-primeiro)
+    const ordered = [...cards].reverse();
+    try {
+      if (kind === "sheet") await exportStudySheetPdf(pageTitle, ordered);
+      else if (kind === "cards") await exportCutCardsPdf(pageTitle, ordered);
+      else await exportQuizPdf(pageTitle, ordered);
+    } finally {
+      setPdfBusy(false);
     }
   }
 
@@ -214,6 +231,46 @@ export function CreateFlashcardModal({
             >
               <FileDown size={12} /> {exported ? "Exportado ✓" : "Exportar CSV (Anki)"}
             </button>
+          )}
+          {cards.length > 0 && !isMobile && (
+            <div className="fc-export-wrap">
+              <button
+                className="fc-tool-btn"
+                onClick={() => setPdfMenuOpen((v) => !v)}
+                disabled={pdfBusy}
+                title="Gera um PDF de estudo com os cards desta página"
+              >
+                <FileText size={12} /> {pdfBusy ? "Gerando…" : "Exportar PDF"}
+              </button>
+              {pdfMenuOpen && (
+                <>
+                  <div className="fc-export-backdrop" onClick={() => setPdfMenuOpen(false)} />
+                  <div className="fc-export-menu">
+                    <button className="fc-export-item" onClick={() => handleExportPdf("sheet")}>
+                      <Table2 size={13} />
+                      <span>
+                        Folha de estudo
+                        <small>Tabela frente | verso — dobre e teste-se</small>
+                      </span>
+                    </button>
+                    <button className="fc-export-item" onClick={() => handleExportPdf("cards")}>
+                      <Scissors size={13} />
+                      <span>
+                        Cartões recortáveis
+                        <small>Imprima frente e verso, recorte e use</small>
+                      </span>
+                    </button>
+                    <button className="fc-export-item" onClick={() => handleExportPdf("quiz")}>
+                      <PenLine size={13} />
+                      <span>
+                        Quiz com gabarito
+                        <small>Escreva as respostas e confira no final</small>
+                      </span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
           {cards.length > 0 && (
             <button
