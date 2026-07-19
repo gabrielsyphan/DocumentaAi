@@ -12,6 +12,16 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.7.0",
+    date: "2026-07-19",
+    title: "Arcade de flashcards",
+    items: [
+      "Novo Arcade (botão de controle no rodapé da sidebar): treine seus flashcards jogando, com XP, níveis, combos e sequência de dias praticados",
+      "Quatro jogos: múltipla escolha (teclas 1–4), combinar pares contra o relógio, digitar a resposta (tolerante a pequenos typos) e ouvir e escrever (o app fala em inglês e você transcreve)",
+      "As rodadas priorizam os cards vencidos e os que você mais erra — e jogar não altera o agendamento das suas revisões",
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-07-18",
     title: "Modo estudo de idiomas",

@@ -528,6 +528,33 @@ no botão, que agora fica dentro do menu).
       "Importar da página"); a bolha do usuário mostra só um rótulo curto
       (display ≠ prompt via `sendPrompt`); par do template "Diário em inglês"
 
+### Fase 17 — Arcade de flashcards (gamificação) ✅ concluída
+
+Treino livre estilo Duolingo em tela cheia (botão Gamepad2 no rodapé da sidebar,
+portal no body). Jogos são extra — **não alteram o agendamento SM-2** dos cards.
+
+- [x] `src/lib/arcade.ts`: montagem de rodadas (cards vencidos/difíceis têm
+      prioridade + jitter), distratores únicos, comparação tolerante a typo
+      (normaliza acentos/pontuação + Levenshtein com tolerância por tamanho),
+      XP/streak/nível em `localStorage` (`documentaai_arcade_stats`, 100 XP por
+      nível; streak diário no padrão do Duolingo), fala em inglês via
+      `speechSynthesis` (prefere voz local en-US)
+- [x] Hub (`src/components/arcade/ArcadeHub.tsx`, lazy): topbar com streak
+      (Flame), XP, barra de nível; grid de jogos com trava por nº mínimo de
+      cards; tela de resultado (acertos, XP, melhor combo, streak); Esc volta
+      ao hub e depois fecha
+- [x] **Múltipla escolha**: frente + 4 alternativas (3 distratores de outros
+      cards), teclas 1–4, feedback verde/vermelho, combo com bônus de XP
+- [x] **Combinar pares**: tabuleiros de 5 pares (frentes × versos embaralhados),
+      cronômetro, erros descontam XP
+- [x] **Digite a resposta**: direção sorteada por pergunta (frente→verso ou
+      verso→frente, a direção "produtiva"); typo pequeno conta como "quase"
+      (XP menor); fluxo Verificar → banner → Continuar (Enter)
+- [x] **Ouvir e escrever** (desktop-only, some sem TTS/mobile): fala a frente
+      do card em inglês (botões repetir e devagar 0.65×), usuário transcreve
+- [x] `fetchAllFlashcards()` em db.ts; jogos que precisam de verso filtram
+      cards com `back` vazio
+
 ### Fase 15 — Sync na nuvem (futuro distante)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)
 - [ ] Auth (Clerk ou similar)
