@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  🌐 <a href="https://gabrielsyphan.github.io/documentaai/"><strong>Site oficial</strong></a> ·
+  🌐 <a href="https://gabrielsyphan.github.io/DocumentaAi/"><strong>Site oficial</strong></a> ·
   ⬇️ <a href="https://github.com/gabrielsyphan/documentaai/releases/latest"><strong>Downloads</strong></a>
 </p>
 
