@@ -234,6 +234,11 @@ export async function fetchFlashcardsByPage(pageId: string): Promise<Flashcard[]
   );
 }
 
+export async function fetchAllFlashcards(): Promise<Flashcard[]> {
+  const database = await getDb();
+  return database.select<Flashcard[]>("SELECT * FROM flashcards ORDER BY created_at DESC");
+}
+
 export async function fetchDueFlashcards(): Promise<Flashcard[]> {
   const database = await getDb();
   const today = new Date().toISOString().slice(0, 10);

@@ -3,7 +3,7 @@ import {
   LayoutTemplate, PenTool, Folder, FolderOpen, ChevronDown, ChevronLeft, LayoutGrid,
   ChevronRight, X as XIcon, ArrowUpAZ, Clock, Trash2, RotateCcw, Eraser,
   FileUp, Palette, BookOpen, Network, Check, HardDriveDownload, HardDriveUpload,
-  MonitorSmartphone, Languages, MoreHorizontal, Sparkles,
+  MonitorSmartphone, Languages, MoreHorizontal, Sparkles, Gamepad2,
 } from "lucide-react";
 import SyncModal from "../sync/SyncModal";
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
@@ -25,6 +25,7 @@ import { markdownToBlocks } from "../../lib/markdown-import";
 import { useDueCount, ReviewSession } from "../flashcards/FlashcardPanel";
 
 const GraphView = lazy(() => import("../graph/GraphView"));
+const ArcadeHub = lazy(() => import("../arcade/ArcadeHub"));
 
 interface Props {
   onSearch: () => void;
@@ -237,6 +238,7 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
   // Daily Notes sempre começa fechada (desktop e mobile)
   const [showDailySection, setShowDailySection] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [showArcade, setShowArcade] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const [showSync, setShowSync] = useState(false);
   const dueCount = useDueCount();
@@ -610,6 +612,13 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
         </button>
         <button
           className="theme-toggle"
+          onClick={() => setShowArcade(true)}
+          title="Arcade — treine seus flashcards jogando"
+        >
+          <Gamepad2 size={16} />
+        </button>
+        <button
+          className="theme-toggle"
           onClick={onTranslate}
           title="Tradutor (⌘T)"
         >
@@ -747,6 +756,13 @@ export default function Sidebar({ onSearch, onTemplates, onTranslate }: Props) {
           em vez da tela */}
       {showReview &&
         createPortal(<ReviewSession onClose={() => setShowReview(false)} />, document.body)}
+      {showArcade &&
+        createPortal(
+          <Suspense fallback={null}>
+            <ArcadeHub onClose={() => setShowArcade(false)} />
+          </Suspense>,
+          document.body
+        )}
       {showChangelog &&
         createPortal(
           <ChangelogModal
