@@ -554,6 +554,20 @@ portal no body). Jogos são extra — **não alteram o agendamento SM-2** dos ca
       do card em inglês (botões repetir e devagar 0.65×), usuário transcreve
 - [x] `fetchAllFlashcards()` em db.ts; jogos que precisam de verso filtram
       cards com `back` vazio
+- [x] **Monte a frase**: palavras do alvo viram chips embaralhados (nunca na
+      ordem original — `scrambleWords`); prefere montar a FRENTE a partir do
+      verso (direção produtiva); elegível se um dos lados tem 2+ palavras
+- [x] **Jogo da memória**: tabuleiros de até 6 pares (12 cartas viradas),
+      contador de jogadas com bônus de XP por fechar com poucas jogadas;
+      elegível só com textos ≤ 48 chars dos dois lados (`memoryEligible`)
+- [x] **Palavra oculta** (forca com 6 corações): frente é o segredo, verso é a
+      dica; teclado qwerty na tela + físico; acento não conta como letra
+      diferente (`normalizeLetter`); elegível se a frente tem 3–24 chars e só
+      letras/espaço/hífen/apóstrofo (`hangmanEligible`)
+- [x] **Modo misto**: sessão com até 4 segmentos sorteados entre os jogos
+      disponíveis (tamanhos reduzidos por segmento em `MIX_SEGMENT_SIZES`),
+      interstitial "Parte n de m" entre segmentos, resultado agregado; cada
+      segmento remonta o componente do jogo via `key`
 
 ### Fase 15 — Sync na nuvem (futuro distante)
 - [ ] Backend (Fastify ou Hono + PostgreSQL)

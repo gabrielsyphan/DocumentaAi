@@ -154,6 +154,56 @@ export function checkAnswer(input: string, expected: string): AnswerVerdict {
   return levenshtein(a, b) <= tolerance ? "close" : "wrong";
 }
 
+// ── Elegibilidade e montagem por jogo ─────────────────────────────────────────
+
+export function wordCount(s: string): number {
+  const t = s.trim();
+  return t ? t.split(/\s+/).length : 0;
+}
+
+/**
+ * Monte a frase: prefere construir a FRENTE (direção produtiva — ex.: montar a
+ * expressão em inglês a partir da tradução); senão constrói o verso.
+ */
+export function scrambleTarget(card: Flashcard): { target: string; prompt: string } | null {
+  if (wordCount(card.front) >= 2 && card.back.trim()) return { target: card.front, prompt: card.back };
+  if (wordCount(card.back) >= 2 && card.front.trim()) return { target: card.back, prompt: card.front };
+  return null;
+}
+
+/** Palavras embaralhadas, garantindo ordem diferente da original quando possível. */
+export function scrambleWords(target: string): string[] {
+  const words = target.trim().split(/\s+/);
+  if (new Set(words).size <= 1) return words;
+  for (let i = 0; i < 10; i++) {
+    const s = shuffle(words);
+    if (s.join(" ") !== words.join(" ")) return s;
+  }
+  return shuffle(words);
+}
+
+/** Palavra oculta: frente curta e só com letras (espaços/hífen/apóstrofo ok). */
+export function hangmanEligible(card: Flashcard): boolean {
+  const f = card.front.trim();
+  return (
+    !!card.back.trim() &&
+    f.length >= 3 &&
+    f.length <= 24 &&
+    /^[a-zA-ZÀ-ÖØ-öø-ÿ' -]+$/.test(f) &&
+    /[a-zA-ZÀ-ÖØ-öø-ÿ]/.test(f)
+  );
+}
+
+/** Memória: textos curtos dos dois lados — senão a carta não cabe na grade. */
+export function memoryEligible(card: Flashcard): boolean {
+  return !!card.back.trim() && card.front.trim().length <= 48 && card.back.trim().length <= 48;
+}
+
+/** Compara letras ignorando acento/caixa ("a" revela "á"). */
+export function normalizeLetter(ch: string): string {
+  return ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 // ── Fala (jogo de ditado) ─────────────────────────────────────────────────────
 
 export const TTS_AVAILABLE = typeof window !== "undefined" && "speechSynthesis" in window;

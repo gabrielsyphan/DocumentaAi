@@ -5999,3 +5999,189 @@ html, body, #root {
   .arcade-chip { font-size: 12.5px; padding: 11px 8px; }
   .arcade-result-stats { gap: 18px; }
 }
+
+/* ── Arcade: Monte a frase ── */
+.arcade-scramble-answer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  transition: border-color 0.15s;
+}
+
+.arcade-scramble-answer.good { border-color: #22c55e; border-style: solid; }
+.arcade-scramble-answer.bad { border-color: #ef4444; border-style: solid; }
+
+.arcade-scramble-placeholder { font-size: 12.5px; color: var(--sidebar-text); opacity: 0.7; }
+
+.arcade-scramble-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.arcade-word-chip {
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-active);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, transform 0.12s;
+}
+
+.arcade-word-chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+.arcade-word-chip.picked { background: transparent; }
+
+/* ── Arcade: Jogo da memória ── */
+.arcade-memory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.arcade-memory-cell {
+  min-height: 84px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  transition: background 0.2s, border-color 0.2s, opacity 0.3s, transform 0.15s;
+}
+
+.arcade-memory-cell:not(.flipped):hover { border-color: var(--accent); transform: scale(1.02); }
+
+.arcade-memory-cell.flipped {
+  background: transparent;
+  color: var(--sidebar-text-active);
+  font-size: 12.5px;
+  font-weight: 500;
+  border-color: var(--accent);
+}
+
+.arcade-memory-cell.matched {
+  opacity: 0.35;
+  border-color: #22c55e;
+  pointer-events: none;
+}
+
+/* ── Arcade: Palavra oculta ── */
+.arcade-lives { display: flex; gap: 2px; }
+.arcade-lives .full { color: #ef4444; fill: #ef4444; }
+.arcade-lives .empty { color: var(--border); }
+
+.arcade-hangman-word {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 24px;
+  align-items: flex-end;
+}
+
+.arcade-hangman-slot {
+  width: 26px;
+  height: 34px;
+  border-bottom: 2px solid var(--sidebar-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.arcade-hangman-slot.revealed { border-bottom-color: var(--accent); }
+
+.arcade-hangman-word.good .arcade-hangman-slot { border-bottom-color: #22c55e; }
+.arcade-hangman-word.bad .arcade-hangman-slot { border-bottom-color: #ef4444; color: #ef4444; }
+
+.arcade-hangman-sep {
+  width: 14px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--sidebar-text);
+}
+
+.arcade-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+}
+
+.arcade-keyboard-row { display: flex; gap: 6px; }
+
+.arcade-key {
+  width: 34px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sidebar-text-active);
+  font-size: 14px;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.arcade-key:not(:disabled):hover { border-color: var(--accent); background: var(--sidebar-hover); }
+.arcade-key.hit { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #16a34a; }
+.arcade-key.miss { opacity: 0.3; }
+
+/* ── Arcade: Modo misto ── */
+.arcade-mix-interstitial {
+  width: 100%;
+  max-width: 420px;
+  margin: 70px auto 0;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  animation: arcade-pop 0.3s ease;
+}
+
+.arcade-mix-step {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-text);
+}
+
+.arcade-mix-interstitial h2 { margin: 0; font-size: 22px; }
+
+.arcade-mix-interstitial p { margin: 0 0 10px; font-size: 13px; color: var(--sidebar-text); }
+
+.arcade-card.mix {
+  width: 100%;
+  margin-bottom: 12px;
+  border-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .arcade-memory-grid { grid-template-columns: repeat(3, 1fr); }
+  .arcade-key { width: 30px; height: 38px; }
+  .arcade-hangman-slot { width: 22px; font-size: 17px; }
+}

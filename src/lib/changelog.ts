@@ -12,6 +12,16 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.8.0",
+    date: "2026-07-19",
+    title: "Arcade turbinado",
+    items: [
+      "Três jogos novos no Arcade: Monte a frase (ordene as palavras embaralhadas), Jogo da memória (encontre os pares frente ↔ verso) e Palavra oculta (forca com 6 vidas e o verso como dica)",
+      "Modo misto: uma sessão sorteia até 4 partes entre os jogos disponíveis — um pouco de cada, como as lições do Duolingo",
+      "Cada jogo entra no ar automaticamente quando você tem cards compatíveis (ex.: frases com 2+ palavras liberam o Monte a frase)",
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-07-19",
     title: "Arcade de flashcards",

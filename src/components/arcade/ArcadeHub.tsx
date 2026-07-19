@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Gamepad2, X, Flame, Zap, ListChecks, Puzzle, Keyboard, Headphones,
-  ArrowLeft, Trophy, RotateCcw,
+  ArrowLeft, Trophy, RotateCcw, Blocks, Brain, WholeWord, Shuffle,
 } from "lucide-react";
 import type { Flashcard } from "../../types";
 import { fetchAllFlashcards } from "../../lib/db";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import {
-  addSessionResult, buildRound, levelInfo, loadStats, stopSpeaking,
-  TTS_AVAILABLE, type ArcadeStats, type SessionResult,
+  addSessionResult, buildRound, hangmanEligible, levelInfo, loadStats,
+  memoryEligible, scrambleTarget, shuffle, stopSpeaking, TTS_AVAILABLE,
+  type ArcadeStats, type SessionResult,
 } from "../../lib/arcade";
 import MultipleChoiceGame from "./MultipleChoiceGame";
 import MatchPairsGame from "./MatchPairsGame";
 import TypeAnswerGame from "./TypeAnswerGame";
 import ListeningGame from "./ListeningGame";
+import SentenceScrambleGame from "./SentenceScrambleGame";
+import MemoryGame from "./MemoryGame";
+import HangmanGame from "./HangmanGame";
 
-type GameId = "choice" | "match" | "type" | "listen";
+type GameId = "choice" | "match" | "type" | "listen" | "scramble" | "memory" | "hangman";
 type View = "hub" | "playing" | "result";
 
 interface GameDef {
@@ -27,6 +31,8 @@ interface GameDef {
   /** Cards elegíveis para este jogo */
   eligible: (withBack: Flashcard[], all: Flashcard[]) => Flashcard[];
   minCards: number;
+  /** Mensagem quando faltam cards elegíveis */
+  lockHint: string;
 }
 
 const GAMES: GameDef[] = [
@@ -38,6 +44,7 @@ const GAMES: GameDef[] = [
     roundSize: 10,
     eligible: (withBack) => withBack,
     minCards: 4,
+    lockHint: "precisa de 4+ cards com verso",
   },
   {
     id: "match",
@@ -47,6 +54,7 @@ const GAMES: GameDef[] = [
     roundSize: 10,
     eligible: (withBack) => withBack,
     minCards: 3,
+    lockHint: "precisa de 3+ cards com verso",
   },
   {
     id: "type",
@@ -56,6 +64,37 @@ const GAMES: GameDef[] = [
     roundSize: 8,
     eligible: (withBack) => withBack,
     minCards: 1,
+    lockHint: "precisa de cards com verso",
+  },
+  {
+    id: "scramble",
+    name: "Monte a frase",
+    desc: "As palavras vêm embaralhadas — toque na ordem certa para formar a frase.",
+    icon: <Blocks size={22} />,
+    roundSize: 8,
+    eligible: (withBack) => withBack.filter((c) => scrambleTarget(c) !== null),
+    minCards: 2,
+    lockHint: "precisa de cards cujo texto tenha 2+ palavras",
+  },
+  {
+    id: "memory",
+    name: "Jogo da memória",
+    desc: "Vire as cartas e encontre os pares frente ↔ verso.",
+    icon: <Brain size={22} />,
+    roundSize: 12,
+    eligible: (withBack) => withBack.filter(memoryEligible),
+    minCards: 3,
+    lockHint: "precisa de 3+ cards com textos curtos",
+  },
+  {
+    id: "hangman",
+    name: "Palavra oculta",
+    desc: "Chute letras e descubra a palavra escondida a partir da dica.",
+    icon: <WholeWord size={22} />,
+    roundSize: 6,
+    eligible: (withBack) => withBack.filter(hangmanEligible),
+    minCards: 1,
+    lockHint: "precisa de cards com frente curta e só letras",
   },
   {
     id: "listen",
@@ -65,17 +104,36 @@ const GAMES: GameDef[] = [
     roundSize: 8,
     eligible: (_withBack, all) => all,
     minCards: 1,
+    lockHint: "precisa de cards",
   },
 ];
+
+/** Quantas perguntas cada jogo contribui num segmento do Modo misto */
+const MIX_SEGMENT_SIZES: Record<GameId, number> = {
+  choice: 4, match: 5, type: 3, listen: 3, scramble: 3, memory: 5, hangman: 2,
+};
+const MIX_MAX_SEGMENTS = 4;
+
+const EMPTY_RESULT: SessionResult = { correct: 0, total: 0, xp: 0, bestCombo: 0 };
+
+interface MixSegment {
+  def: GameDef;
+  round: Flashcard[];
+}
 
 export default function ArcadeHub({ onClose }: { onClose: () => void }) {
   const isMobile = useIsMobile();
   const [cards, setCards] = useState<Flashcard[] | null>(null);
   const [stats, setStats] = useState<ArcadeStats>(loadStats());
   const [view, setView] = useState<View>("hub");
-  const [gameId, setGameId] = useState<GameId | null>(null);
+  const [gameId, setGameId] = useState<GameId | "mix" | null>(null);
   const [round, setRound] = useState<Flashcard[]>([]);
   const [result, setResult] = useState<SessionResult | null>(null);
+  // Estado do Modo misto
+  const [mixSegments, setMixSegments] = useState<MixSegment[]>([]);
+  const [mixIdx, setMixIdx] = useState(0);
+  const [mixInterstitial, setMixInterstitial] = useState(false);
+  const [mixAcc, setMixAcc] = useState<SessionResult>(EMPTY_RESULT);
 
   useEffect(() => {
     fetchAllFlashcards().then(setCards);
@@ -97,10 +155,34 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
   const withBack = useMemo(() => (cards ?? []).filter((c) => c.back.trim()), [cards]);
   const level = levelInfo(stats.xp);
 
+  function gameAvailable(def: GameDef): boolean {
+    if (!cards) return false;
+    if (def.id === "listen" && (isMobile || !TTS_AVAILABLE)) return false;
+    return def.eligible(withBack, cards).length >= def.minCards;
+  }
+
+  const availableDefs = GAMES.filter(gameAvailable);
+
   function startGame(def: GameDef) {
     if (!cards) return;
     setRound(buildRound(def.eligible(withBack, cards), def.roundSize));
     setGameId(def.id);
+    setView("playing");
+  }
+
+  function startMix() {
+    if (!cards) return;
+    const defs = shuffle(availableDefs).slice(0, MIX_MAX_SEGMENTS);
+    setMixSegments(
+      defs.map((def) => ({
+        def,
+        round: buildRound(def.eligible(withBack, cards), MIX_SEGMENT_SIZES[def.id]),
+      }))
+    );
+    setMixIdx(0);
+    setMixAcc(EMPTY_RESULT);
+    setMixInterstitial(true);
+    setGameId("mix");
     setView("playing");
   }
 
@@ -118,12 +200,53 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
     setView("result");
   }
 
+  function handleSegmentFinish(r: SessionResult) {
+    stopSpeaking();
+    const acc: SessionResult = {
+      correct: mixAcc.correct + r.correct,
+      total: mixAcc.total + r.total,
+      xp: mixAcc.xp + r.xp,
+      bestCombo: Math.max(mixAcc.bestCombo, r.bestCombo),
+    };
+    if (mixIdx + 1 < mixSegments.length) {
+      setMixAcc(acc);
+      setMixIdx(mixIdx + 1);
+      setMixInterstitial(true);
+    } else {
+      handleFinish(acc);
+    }
+  }
+
   function playAgain() {
+    if (gameId === "mix") {
+      startMix();
+      return;
+    }
     const def = GAMES.find((g) => g.id === gameId);
     if (def) startGame(def);
   }
 
-  const currentDef = GAMES.find((g) => g.id === gameId);
+  function renderGame(id: GameId, gameRound: Flashcard[], onDone: (r: SessionResult) => void) {
+    switch (id) {
+      case "choice":
+        return <MultipleChoiceGame round={gameRound} pool={withBack} onFinish={onDone} />;
+      case "match":
+        return <MatchPairsGame round={gameRound} onFinish={onDone} />;
+      case "type":
+        return <TypeAnswerGame round={gameRound} onFinish={onDone} />;
+      case "listen":
+        return <ListeningGame round={gameRound} onFinish={onDone} />;
+      case "scramble":
+        return <SentenceScrambleGame round={gameRound} onFinish={onDone} />;
+      case "memory":
+        return <MemoryGame round={gameRound} onFinish={onDone} />;
+      case "hangman":
+        return <HangmanGame round={gameRound} onFinish={onDone} />;
+    }
+  }
+
+  const resultName = gameId === "mix" ? "Modo misto" : GAMES.find((g) => g.id === gameId)?.name;
+  const mixCurrent = mixSegments[mixIdx];
 
   return (
     <div className="arcade-overlay">
@@ -173,11 +296,21 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
                 Treino livre com os seus {cards.length} cards — os que você mais erra aparecem primeiro.
                 Jogar não altera o agendamento das revisões.
               </p>
+
+              {availableDefs.length >= 2 && (
+                <button className="arcade-card mix" onClick={startMix}>
+                  <span className="arcade-card-icon"><Shuffle size={22} /></span>
+                  <span className="arcade-card-name">Modo misto</span>
+                  <span className="arcade-card-desc">
+                    Uma sessão com um pouco de cada jogo — {Math.min(availableDefs.length, MIX_MAX_SEGMENTS)} partes sorteadas.
+                  </span>
+                </button>
+              )}
+
               <div className="arcade-grid">
                 {GAMES.map((def) => {
                   if (def.id === "listen" && (isMobile || !TTS_AVAILABLE)) return null;
-                  const eligible = def.eligible(withBack, cards);
-                  const locked = eligible.length < def.minCards;
+                  const locked = !gameAvailable(def);
                   return (
                     <button
                       key={def.id}
@@ -188,11 +321,7 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
                       <span className="arcade-card-icon">{def.icon}</span>
                       <span className="arcade-card-name">{def.name}</span>
                       <span className="arcade-card-desc">{def.desc}</span>
-                      {locked && (
-                        <span className="arcade-card-lock">
-                          precisa de {def.minCards}+ cards com verso
-                        </span>
-                      )}
+                      {locked && <span className="arcade-card-lock">{def.lockHint}</span>}
                     </button>
                   );
                 })}
@@ -202,17 +331,26 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {view === "playing" && gameId === "choice" && (
-        <MultipleChoiceGame round={round} pool={withBack} onFinish={handleFinish} />
-      )}
-      {view === "playing" && gameId === "match" && (
-        <MatchPairsGame round={round} onFinish={handleFinish} />
-      )}
-      {view === "playing" && gameId === "type" && (
-        <TypeAnswerGame round={round} onFinish={handleFinish} />
-      )}
-      {view === "playing" && gameId === "listen" && (
-        <ListeningGame round={round} onFinish={handleFinish} />
+      {view === "playing" && gameId !== null && gameId !== "mix" &&
+        renderGame(gameId, round, handleFinish)}
+
+      {view === "playing" && gameId === "mix" && mixCurrent && (
+        mixInterstitial ? (
+          <div className="arcade-mix-interstitial">
+            <span className="arcade-mix-step">Parte {mixIdx + 1} de {mixSegments.length}</span>
+            <span className="arcade-card-icon">{mixCurrent.def.icon}</span>
+            <h2>{mixCurrent.def.name}</h2>
+            <p>{mixCurrent.def.desc}</p>
+            <button className="arcade-btn primary" onClick={() => setMixInterstitial(false)} autoFocus>
+              {mixIdx === 0 ? "Começar" : "Continuar"}
+            </button>
+          </div>
+        ) : (
+          // key força remontagem do componente a cada segmento
+          <div key={mixIdx} className="arcade-mix-stage">
+            {renderGame(mixCurrent.def.id, mixCurrent.round, handleSegmentFinish)}
+          </div>
+        )
       )}
 
       {view === "result" && result && (
@@ -250,7 +388,7 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
               Outros jogos
             </button>
             <button className="arcade-btn primary" onClick={playAgain}>
-              <RotateCcw size={14} /> Jogar de novo{currentDef ? ` — ${currentDef.name}` : ""}
+              <RotateCcw size={14} /> Jogar de novo{resultName ? ` — ${resultName}` : ""}
             </button>
           </div>
         </div>
