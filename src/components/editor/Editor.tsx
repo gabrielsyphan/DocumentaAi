@@ -325,7 +325,7 @@ const makeHighlighter: CodeBlockOptions["createHighlighter"] = () =>
 
 export default function Editor({ pageId }: Props) {
   const { pages, updatePage } = usePagesStore();
-  const { theme, toggleFocusMode } = useUIStore();
+  const { theme, toggleFocusMode, pendingFindQuery, setPendingFindQuery } = useUIStore();
   const tts = useTTS();
   const isMobile = useIsMobile();
   const page = pages.find((p) => p.id === pageId);
@@ -620,6 +620,17 @@ export default function Editor({ pageId }: Props) {
   // Para TTS quando a página muda (Editor remonta via key={pageId})
   useEffect(() => {
     return () => { tts.stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Um resultado de conteúdo no ⌘K deixou uma busca "encomendada" — abre a
+  // barra de busca da página já com o termo preenchido e consome o pedido.
+  useEffect(() => {
+    if (!pendingFindQuery) return;
+    setFindInitialQuery(pendingFindQuery);
+    setShowFind(true);
+    setFindFocusSignal((t) => t + 1);
+    setPendingFindQuery(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1416,9 +1427,11 @@ function PresentationMode({ slides, onClose }: { slides: Slide[]; onClose: () =>
       </button>
 
       <div className="pres-slide" ref={slideRef}>
-        <h1 className="pres-slide-title">{slide.title}</h1>
-        <div className="pres-slide-body">
-          {renderSlideContent(slide.content)}
+        <div className="pres-slide-inner">
+          <h1 className="pres-slide-title">{slide.title}</h1>
+          <div className="pres-slide-body">
+            {renderSlideContent(slide.content)}
+          </div>
         </div>
       </div>
 

@@ -26,6 +26,9 @@ interface UIState {
   focusMode: boolean;
   pageSort: PageSort;
   expandedPages: Set<string>;
+  // Texto a buscar automaticamente na página assim que ela abrir (vindo de um
+  // resultado de conteúdo no ⌘K) — o Editor consome e limpa isso no mount.
+  pendingFindQuery: string | null;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
@@ -35,6 +38,7 @@ interface UIState {
   setPageSort: (sort: PageSort) => void;
   collapsePage: (id: string, descendantIds: string[]) => void;
   expandPage: (id: string) => void;
+  setPendingFindQuery: (query: string | null) => void;
 
 }
 
@@ -46,6 +50,7 @@ export const useUIStore = create<UIState>((set) => ({
   focusMode: false,
   pageSort: "default",
   expandedPages: new Set<string>(),
+  pendingFindQuery: null,
 
   setTheme: (theme) => {
     localStorage.setItem("documentaai-theme", theme);
@@ -81,4 +86,6 @@ export const useUIStore = create<UIState>((set) => ({
       next.add(id);
       return { expandedPages: next };
     }),
+
+  setPendingFindQuery: (pendingFindQuery) => set({ pendingFindQuery }),
 }));
