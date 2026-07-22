@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { Flashcard } from "../../types";
 import { shuffle, XP_PAIR, type SessionResult } from "../../lib/arcade";
+import { playCorrect, playWrong } from "../../lib/sound";
 
 interface Props {
   round: Flashcard[];
@@ -81,6 +82,7 @@ export default function MemoryGame({ round, onFinish }: Props) {
     setMoves(newMoves);
     setFlipped([firstKey, cell.key]);
     if (first.cardId === cell.cardId) {
+      playCorrect();
       const newMatched = new Set(matched).add(cell.cardId);
       const newTotal = totalMatched + 1;
       const xpNow = xp + XP_PAIR;
@@ -92,6 +94,7 @@ export default function MemoryGame({ round, onFinish }: Props) {
         advance(newMoves, newMatched.size, newTotal, xpNow);
       }, 350);
     } else {
+      playWrong();
       lockRef.current = true;
       setTimeout(() => {
         setFlipped([]);

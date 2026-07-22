@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Heart } from "lucide-react";
 import type { Flashcard } from "../../types";
 import { normalizeLetter, xpFor, type SessionResult } from "../../lib/arcade";
+import { playCorrect, playWrong } from "../../lib/sound";
 
 interface Props {
   round: Flashcard[];
@@ -41,6 +42,7 @@ export default function HangmanGame({ round, onFinish }: Props) {
     setGuessed(newGuessed);
 
     if (secretLetters.has(letter)) {
+      playCorrect();
       const allFound = [...secretLetters].every((l) => newGuessed.has(l));
       if (allFound) {
         setVerdict("won");
@@ -52,6 +54,7 @@ export default function HangmanGame({ round, onFinish }: Props) {
         setCorrectCount((c) => c + 1);
       }
     } else {
+      playWrong();
       const newLives = lives - 1;
       setLives(newLives);
       if (newLives === 0) {

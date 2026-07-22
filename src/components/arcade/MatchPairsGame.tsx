@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Flashcard } from "../../types";
 import { shuffle, XP_PAIR, type SessionResult } from "../../lib/arcade";
+import { playCorrect, playWrong } from "../../lib/sound";
 
 interface Props {
   round: Flashcard[];
@@ -72,6 +73,7 @@ export default function MatchPairsGame({ round, onFinish }: Props) {
     }
     // Um de cada lado: verifica o par
     if (selected.cardId === chip.cardId) {
+      playCorrect();
       const newMatched = new Set(matched).add(chip.cardId);
       setMatched(newMatched);
       setSelected(null);
@@ -96,6 +98,7 @@ export default function MatchPairsGame({ round, onFinish }: Props) {
         }
       }
     } else {
+      playWrong();
       setErrors((e) => e + 1);
       setWrongPair([chipKey(selected), chipKey(chip)]);
       setSelected(null);

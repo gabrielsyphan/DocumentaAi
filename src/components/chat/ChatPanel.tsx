@@ -4,7 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   MessageSquareText, X as XIcon, Send, Square, Plus,
   Search as SearchIcon, FileText, AlertTriangle, ChevronDown,
-  Download, Loader2, Check as CheckIcon, Languages,
+  Download, Loader2, Check as CheckIcon, Languages, AlignLeft,
 } from "lucide-react";
 import { usePagesStore } from "../../store/pages.store";
 import { extractParagraphs } from "../../lib/tts";
@@ -28,7 +28,7 @@ interface EngineCheck {
   mcp_path: string | null;
 }
 
-const MCP_PATH_STORAGE = "documentaai-chat-mcp-path";
+export const MCP_PATH_STORAGE = "documentaai-chat-mcp-path";
 
 const ENGINE_LABELS: Record<Engine, string> = { claude: "Claude", kiro: "Kiro CLI" };
 
@@ -60,6 +60,9 @@ export default function ChatPanel({ open, onClose }: Props) {
   const [items, setItems] = useState<ChatItem[]>([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
+  // Quando ativo, as perguntas digitadas usam só o texto da página aberta
+  // (injetado direto no prompt) em vez de deixar o agente buscar na base toda
+  const [pageScoped, setPageScoped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sessionRef = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -201,6 +204,7 @@ export default function ChatPanel({ open, onClose }: Props) {
         prompt,
         sessionId: engine === "claude" ? sessionRef.current : null,
         mcpPathOverride: mcpOverride ?? null,
+        systemPrompt: null,
       });
     } catch (e) {
       setRunning(false);
@@ -209,10 +213,45 @@ export default function ChatPanel({ open, onClose }: Props) {
   }
 
   async function handleSend() {
-    const prompt = input.trim();
-    if (!prompt || running) return;
+    const question = input.trim();
+    if (!question || running) return;
     setInput("");
-    await sendPrompt(prompt, prompt);
+    if (pageScoped && currentPage && currentPageText.trim()) {
+      const title = currentPage.title || "Sem título";
+      const prompt = [
+        `O usuário está perguntando especificamente sobre a página "${title}" abaixo. Neste pedido NÃO consulte a base de conhecimento — responda usando apenas o texto fornecido. Se a resposta não estiver no texto, diga isso claramente em vez de inventar.`,
+        "",
+        "Responda em português, de forma direta.",
+        "Formate para um chat simples: sem títulos markdown (#), sem tabelas e sem blocos de código — apenas **negrito** e listas se precisar.",
+        "",
+        "Texto da página:",
+        '"""',
+        currentPageText.slice(0, 8000),
+        '"""',
+        "",
+        `Pergunta: ${question}`,
+      ].join("\n");
+      await sendPrompt(prompt, question);
+    } else {
+      await sendPrompt(question, question);
+    }
+  }
+
+  function handleSummarizePage() {
+    if (!currentPage || !currentPageText.trim()) return;
+    const title = currentPage.title || "Sem título";
+    const prompt = [
+      `Resuma o conteúdo da página "${title}" abaixo. Neste pedido NÃO consulte a base de conhecimento — trabalhe apenas com o texto fornecido.`,
+      "",
+      "Responda em português, num resumo direto de 3 a 6 frases (ou uma lista curta se o conteúdo for mais estruturado), destacando os pontos principais.",
+      "Formate para um chat simples: sem títulos markdown (#), sem tabelas e sem blocos de código — apenas **negrito** e listas se precisar.",
+      "",
+      "Texto da página:",
+      '"""',
+      currentPageText.slice(0, 8000),
+      '"""',
+    ].join("\n");
+    sendPrompt(prompt, `Resumir página — "${title}"`);
   }
 
   function handleCorrectEnglish() {
@@ -246,6 +285,7 @@ export default function ChatPanel({ open, onClose }: Props) {
     sessionRef.current = null;
     setItems([]);
     setError(null);
+    setPageScoped(false);
     inputRef.current?.focus();
   }
 
@@ -434,6 +474,22 @@ export default function ChatPanel({ open, onClose }: Props) {
                   Corrigir meu inglês
                   <span className="chat-quick-page">{currentPage.title || "Sem título"}</span>
                 </button>
+                <button
+                  className="chat-quick-chip"
+                  onClick={handleSummarizePage}
+                  title="Pede um resumo do conteúdo da página aberta, sem consultar a base de conhecimento"
+                >
+                  <AlignLeft size={12} />
+                  Resumir esta página
+                </button>
+                <button
+                  className={`chat-quick-chip${pageScoped ? " active" : ""}`}
+                  onClick={() => setPageScoped((v) => !v)}
+                  title="Quando ativo, suas perguntas usam só o texto desta página (sem buscar na base) — mais rápido e sempre atualizado"
+                >
+                  <FileText size={12} />
+                  {pageScoped ? "Perguntando só sobre esta página" : "Perguntar só sobre esta página"}
+                </button>
               </div>
             )}
 
@@ -441,7 +497,11 @@ export default function ChatPanel({ open, onClose }: Props) {
               <textarea
                 ref={inputRef}
                 className="chat-input"
-                placeholder="Pergunte sobre suas anotações… (Enter envia, Shift+Enter quebra linha)"
+                placeholder={
+                  pageScoped
+                    ? `Pergunte sobre "${currentPage?.title || "Sem título"}"… (Enter envia, Shift+Enter quebra linha)`
+                    : "Pergunte sobre suas anotações… (Enter envia, Shift+Enter quebra linha)"
+                }
                 value={input}
                 rows={2}
                 onChange={(e) => setInput(e.target.value)}

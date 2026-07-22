@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Flashcard } from "../../types";
 import { pickDistractors, shuffle, xpFor, type SessionResult } from "../../lib/arcade";
+import { playCorrect, playWrong } from "../../lib/sound";
 
 interface Props {
   round: Flashcard[];
@@ -46,6 +47,7 @@ export default function MultipleChoiceGame({ round, pool, onFinish }: Props) {
     const hit = options[i].correct;
     let nextXp = xp;
     if (hit) {
+      playCorrect();
       const newCombo = combo + 1;
       nextXp += xpFor("correct", newCombo);
       setXp(nextXp);
@@ -53,6 +55,7 @@ export default function MultipleChoiceGame({ round, pool, onFinish }: Props) {
       setBestCombo((b) => Math.max(b, newCombo));
       setCorrectCount((c) => c + 1);
     } else {
+      playWrong();
       setCombo(0);
     }
     setTimeout(() => {

@@ -12,6 +12,16 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.9.0",
+    date: "2026-07-22",
+    title: "Ações de IA no editor + som no Arcade",
+    items: [
+      "Novo botão \"Continuar com IA\" na barra de formatação: selecione um trecho e o agente continua o texto no mesmo idioma e tom, usando o resto da página como contexto para ficar coerente com o que você já escreveu",
+      "Chat: dois atalhos novos com o texto da página aberta — \"Resumir esta página\" e \"Perguntar só sobre esta página\" (usa o texto direto, sem depender do índice de busca)",
+      "Arcade: efeitos sonoros de acerto/erro em todos os jogos, com botão de alto-falante no topo para desativar",
+    ],
+  },
+  {
     version: "1.8.1",
     date: "2026-07-22",
     title: "Busca de conteúdo + correção do modo apresentação",

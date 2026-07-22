@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Flashcard } from "../../types";
 import { checkAnswer, xpFor, type AnswerVerdict, type SessionResult } from "../../lib/arcade";
+import { playCorrect, playWrong } from "../../lib/sound";
 
 interface Props {
   round: Flashcard[];
@@ -35,12 +36,14 @@ export default function TypeAnswerGame({ round, onFinish }: Props) {
     const v = checkAnswer(input, expected);
     setVerdict(v);
     if (v !== "wrong") {
+      playCorrect();
       const newCombo = combo + 1;
       setXp((x) => x + xpFor(v === "exact" ? "correct" : "close", newCombo));
       setCombo(newCombo);
       setBestCombo((b) => Math.max(b, newCombo));
       setCorrectCount((c) => c + 1);
     } else {
+      playWrong();
       setCombo(0);
     }
   }

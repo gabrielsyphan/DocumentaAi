@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, useBlockNoteEditor, SuggestionMenuController, getDefaultReactSlashMenuItems, createReactBlockSpec } from "@blocknote/react";
+import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, getFormattingToolbarItems, useBlockNoteEditor, useComponentsContext, SuggestionMenuController, getDefaultReactSlashMenuItems, createReactBlockSpec } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { WikiLink } from "./WikiLink";
 import { createHighlighter } from "shiki";
@@ -14,16 +14,17 @@ import { blocksToMarkdown, printToPdf } from "../../lib/export";
 import { exportPageAsPdf } from "../../lib/pdf-export";
 import { saveCustomTemplate, stripBlockIds } from "../../lib/templates";
 import { tagColor, normalizeTag } from "../../lib/tags";
-import { useTTS, countWords, type TTSState } from "../../lib/tts";
+import { useTTS, countWords, extractParagraphs, type TTSState } from "../../lib/tts";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { saveVersion, getVersions } from "../../lib/db";
 import type { PageVersion } from "../../types";
 import { getAllSnippets, saveCustomSnippet, loadCustomSnippets, deleteCustomSnippet, type Snippet } from "../../lib/snippets";
 import { CreateFlashcardModal } from "../flashcards/FlashcardPanel";
 import FindInPageBar from "./FindInPageBar";
+import AIContinueModal from "./AIContinueModal";
 import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2, Zap } from "lucide-react";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2, Zap, Sparkles } from "lucide-react";
 
 // ── Shiki singleton para slides (separado do highlighter do editor) ───────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,7 +245,75 @@ function StableFormattingToolbar() {
     };
   }, [editor]);
 
-  return <FormattingToolbar />;
+  return (
+    <FormattingToolbar>
+      {getFormattingToolbarItems()}
+      <AIContinueButton />
+    </FormattingToolbar>
+  );
+}
+
+// Converte o texto gerado pela IA (parágrafos separados por linha em branco)
+// em blocos de parágrafo do BlockNote, no mesmo formato usado por templates/snippets.
+function textToParagraphBlocks(text: string) {
+  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const parts = paragraphs.length > 0 ? paragraphs : [text.trim()];
+  return parts.map((paragraph) => ({
+    type: "paragraph",
+    props: { textColor: "default", backgroundColor: "default", textAlignment: "left" },
+    content: [{ type: "text", text: paragraph, styles: {} }],
+    children: [],
+  }));
+}
+
+// Botão "Continuar com IA" na barra de formatação — só aparece com texto selecionado
+// (mesma condição da FormattingToolbar). Reaproveita o agente CLI do chat (⌘J):
+// mesmo processo/binário, mas com um prompt fechado que não consulta a base de
+// conhecimento. Manda o texto completo da página como contexto (não só o trecho
+// selecionado) para a continuação ficar coerente com o que já foi escrito.
+function AIContinueButton() {
+  const editor = useBlockNoteEditor();
+  const Components = useComponentsContext()!;
+  const { pages, selectedPageId } = usePagesStore();
+  const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [pageContext, setPageContext] = useState("");
+
+  const pageTitle = pages.find((p) => p.id === selectedPageId)?.title || "Sem título";
+
+  function handleClick() {
+    const text = editor.getSelectedText();
+    if (!text.trim()) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setPageContext(extractParagraphs(editor.document as any).join("\n\n"));
+    setSelectedText(text);
+  }
+
+  function handleInsert(generated: string) {
+    const curBlock = editor.getTextCursorPosition().block;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    editor.insertBlocks(textToParagraphBlocks(generated) as any, curBlock, "after");
+  }
+
+  return (
+    <>
+      <Components.FormattingToolbar.Button
+        className="bn-button"
+        onClick={handleClick}
+        mainTooltip="Continuar com IA"
+        label="Continuar com IA"
+        icon={<Sparkles size={16} />}
+      />
+      {selectedText !== null && (
+        <AIContinueModal
+          selectedText={selectedText}
+          pageContext={pageContext}
+          pageTitle={pageTitle}
+          onInsert={handleInsert}
+          onClose={() => setSelectedText(null)}
+        />
+      )}
+    </>
+  );
 }
 
 interface Props {

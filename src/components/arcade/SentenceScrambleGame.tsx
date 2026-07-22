@@ -3,6 +3,7 @@ import type { Flashcard } from "../../types";
 import {
   normalizeAnswer, scrambleTarget, scrambleWords, xpFor, type SessionResult,
 } from "../../lib/arcade";
+import { playCorrect, playWrong } from "../../lib/sound";
 
 interface Props {
   round: Flashcard[];
@@ -52,12 +53,14 @@ export default function SentenceScrambleGame({ round, onFinish }: Props) {
     const hit = normalizeAnswer(built) === normalizeAnswer(question.target);
     setVerdict(hit ? "exact" : "wrong");
     if (hit) {
+      playCorrect();
       const newCombo = combo + 1;
       setXp((x) => x + xpFor("correct", newCombo));
       setCombo(newCombo);
       setBestCombo((b) => Math.max(b, newCombo));
       setCorrectCount((c) => c + 1);
     } else {
+      playWrong();
       setCombo(0);
     }
   }

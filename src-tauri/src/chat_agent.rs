@@ -222,6 +222,7 @@ pub fn chat_agent_send(
     prompt: String,
     session_id: Option<String>,
     mcp_path_override: Option<String>,
+    system_prompt: Option<String>,
 ) -> Result<(), String> {
     let bin = resolve_bin(engine_bin_name(&engine))
         .ok_or_else(|| format!("Binário '{}' não encontrado. Instale e tente de novo.", engine_bin_name(&engine)))?;
@@ -242,6 +243,10 @@ pub fn chat_agent_send(
             r#"{{"mcpServers":{{"documentaai":{{"command":"node","args":["{}"]}}}}}}"#,
             mcp_path.replace('\\', "\\\\").replace('"', "\\\"")
         );
+        // Cada chamador pode substituir o system prompt padrão (ex.: o chat da
+        // base quer sempre responder em português; já "continuar com IA" precisa
+        // preservar o idioma original do texto, o que conflita com esse padrão).
+        let sys_prompt = system_prompt.as_deref().unwrap_or(SYSTEM_PROMPT);
         cmd.args([
             "-p", &prompt,
             "--output-format", "stream-json",
@@ -251,7 +256,7 @@ pub fn chat_agent_send(
             "--strict-mcp-config",
             "--allowedTools", ALLOWED_TOOLS,
             "--disallowedTools", DISALLOWED_TOOLS,
-            "--append-system-prompt", SYSTEM_PROMPT,
+            "--append-system-prompt", sys_prompt,
             "--max-turns", "15",
         ]);
         if let Some(sid) = &session_id {

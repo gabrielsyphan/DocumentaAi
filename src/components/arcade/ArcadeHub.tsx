@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Gamepad2, X, Flame, Zap, ListChecks, Puzzle, Keyboard, Headphones,
   ArrowLeft, Trophy, RotateCcw, Blocks, Brain, WholeWord, Shuffle,
+  Volume2, VolumeX,
 } from "lucide-react";
 import type { Flashcard } from "../../types";
 import { fetchAllFlashcards } from "../../lib/db";
@@ -11,6 +12,7 @@ import {
   memoryEligible, scrambleTarget, shuffle, stopSpeaking, TTS_AVAILABLE,
   type ArcadeStats, type SessionResult,
 } from "../../lib/arcade";
+import { isSoundEnabled, setSoundEnabled } from "../../lib/sound";
 import MultipleChoiceGame from "./MultipleChoiceGame";
 import MatchPairsGame from "./MatchPairsGame";
 import TypeAnswerGame from "./TypeAnswerGame";
@@ -134,6 +136,13 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
   const [mixIdx, setMixIdx] = useState(0);
   const [mixInterstitial, setMixInterstitial] = useState(false);
   const [mixAcc, setMixAcc] = useState<SessionResult>(EMPTY_RESULT);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+
+  function toggleSound() {
+    const next = !soundOn;
+    setSoundEnabled(next);
+    setSoundOn(next);
+  }
 
   useEffect(() => {
     fetchAllFlashcards().then(setCards);
@@ -272,6 +281,13 @@ export default function ArcadeHub({ onClose }: { onClose: () => void }) {
             </span>
           </span>
         </div>
+        <button
+          className="arcade-top-btn"
+          onClick={toggleSound}
+          title={soundOn ? "Desativar efeitos sonoros" : "Ativar efeitos sonoros"}
+        >
+          {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
         <button className="arcade-top-btn" onClick={onClose} title="Fechar (Esc)">
           <X size={16} />
         </button>
