@@ -12,6 +12,15 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.8.1",
+    date: "2026-07-22",
+    title: "Busca de conteúdo + correção do modo apresentação",
+    items: [
+      "A busca ⌘K agora encontra também texto dentro das páginas, não só no título — mostra um trecho com o termo destacado e, ao selecionar, já pula direto para ele na página",
+      "Corrigido o modo apresentação: slides com conteúdo maior que a tela começavam cortados no meio; agora sempre começam do topo",
+    ],
+  },
+  {
     version: "1.8.0",
     date: "2026-07-19",
     title: "Arcade turbinado",
