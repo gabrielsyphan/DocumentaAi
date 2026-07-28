@@ -19,6 +19,8 @@ function applyTheme(t: Theme) {
 const savedTheme = (localStorage.getItem("documentaai-theme") as Theme) ?? "dark";
 applyTheme(savedTheme);
 
+const savedLineNumbers = localStorage.getItem("documentaai-line-numbers") === "1";
+
 interface UIState {
   theme: Theme;
   sidebarOpen: boolean;
@@ -29,6 +31,9 @@ interface UIState {
   // Texto a buscar automaticamente na página assim que ela abrir (vindo de um
   // resultado de conteúdo no ⌘K) — o Editor consome e limpa isso no mount.
   pendingFindQuery: string | null;
+  // Numeração de linhas do editor — preferência global, persistida em
+  // localStorage (não por página) para não poluir o modelo de dados.
+  lineNumbers: boolean;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
@@ -39,6 +44,7 @@ interface UIState {
   collapsePage: (id: string, descendantIds: string[]) => void;
   expandPage: (id: string) => void;
   setPendingFindQuery: (query: string | null) => void;
+  toggleLineNumbers: () => void;
 
 }
 
@@ -51,6 +57,7 @@ export const useUIStore = create<UIState>((set) => ({
   pageSort: "default",
   expandedPages: new Set<string>(),
   pendingFindQuery: null,
+  lineNumbers: savedLineNumbers,
 
   setTheme: (theme) => {
     localStorage.setItem("documentaai-theme", theme);
@@ -88,4 +95,11 @@ export const useUIStore = create<UIState>((set) => ({
     }),
 
   setPendingFindQuery: (pendingFindQuery) => set({ pendingFindQuery }),
+
+  toggleLineNumbers: () =>
+    set((s) => {
+      const next = !s.lineNumbers;
+      localStorage.setItem("documentaai-line-numbers", next ? "1" : "0");
+      return { lineNumbers: next };
+    }),
 }));

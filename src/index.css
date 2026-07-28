@@ -3240,6 +3240,37 @@ html, body, #root {
   user-select: none;
 }
 
+/* ── Numeração de linhas (opcional, botão # no topbar) ─────────────────────────
+   Numera os blocos de topo (parágrafos, títulos, itens de lista...) na coluna
+   esquerda, dentro do padding de 56px do .bn-editor — não numeramos blocos
+   aninhados (sub-itens) porque a indentação deles quebraria o alinhamento
+   da coluna. Os blocos de topo NÃO são filhos diretos de .bn-editor: o doc
+   sempre envolve o nível de topo num único .bn-block-group. */
+.bn-container.la-line-numbers .bn-editor > .bn-block-group {
+  counter-reset: doc-line;
+}
+
+.bn-container.la-line-numbers .bn-editor > .bn-block-group > .bn-block-outer {
+  position: relative;
+  counter-increment: doc-line;
+}
+
+.bn-container.la-line-numbers .bn-editor > .bn-block-group > .bn-block-outer::before {
+  content: counter(doc-line);
+  position: absolute;
+  top: 4px;
+  left: -42px;
+  width: 32px;
+  text-align: right;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--sidebar-text);
+  opacity: 0.4;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  pointer-events: none;
+}
+
 /* ── Reminder Picker ─────────────────────────────────────────────────────────── */
 
 .reminder-picker {

@@ -12,7 +12,9 @@ type AnyBlock = { type: string; content?: unknown; children?: AnyBlock[] };
 
 // Separador: hífen, en-dash ou em-dash cercado de espaços — evita quebrar
 // palavras hifenizadas ("floor-to-ceiling") no meio.
-const SEPARATOR = /\s+[-–—]\s+/;
+// Exportado porque o export de PDF (pdf-export.ts) reusa o mesmo padrão
+// para detectar linhas "frase - tradução" e renderizá-las como tabela.
+export const SEPARATOR = /\s+[-–—]\s+/;
 
 // Blocos que não contêm frases de estudo
 const SKIP_TYPES = new Set(["heading", "codeBlock", "table", "image", "video", "audio", "file", "captureStamp"]);

@@ -5,6 +5,7 @@
 // O arquivo é salvo via comando Rust `save_binary_file` (dialog nativo).
 
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { SEPARATOR as CARD_SEPARATOR } from "./flashcard-import";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -70,6 +71,28 @@ function inlineToPdf(items: InlineItem[]): any[] {
   });
 }
 
+function plainText(items: InlineItem[]): string {
+  return (items ?? [])
+    .map((c) => (c.type === "text" ? (c.text ?? "") : plainText(c.content ?? [])))
+    .join("");
+}
+
+/** Renderiza um bloco de pares "frase - tradução" acumulados como tabela de 2 colunas. */
+function studyPairsToPdf(rows: { front: string; back: string }[]): any {
+  return {
+    table: {
+      widths: ["*", "*"],
+      body: rows.map((r) => [
+        { text: r.front, margin: [4, 3, 4, 3] },
+        { text: r.back, margin: [4, 3, 4, 3] },
+      ]),
+    },
+    layout: "lightHorizontalLines",
+    fontSize: 10,
+    margin: [0, 2, 0, 10],
+  };
+}
+
 function tableToPdf(content: any): any {
   const rows: any[][] = (content?.rows ?? []).map((row: any) =>
     (row.cells ?? []).map((cell: any) => ({
@@ -94,15 +117,38 @@ export function blocksToPdfContent(blocks: BNBlock[], depth = 0): any[] {
   const out: any[] = [];
   let bullets: any[] = [];
   let numbered: any[] = [];
+  // Parágrafos consecutivos no padrão "frase - tradução" (mesmo formato do
+  // import de flashcards) viram uma tabela de 2 colunas em vez de texto solto —
+  // qualquer outro bloco (título, lista, imagem...) fecha a tabela atual.
+  let studyPairs: { front: string; back: string }[] = [];
 
   const flush = () => {
     if (bullets.length) { out.push({ ul: bullets, style: "para" }); bullets = []; }
     if (numbered.length) { out.push({ ol: numbered, style: "para" }); numbered = []; }
   };
 
+  const flushStudyPairs = () => {
+    if (studyPairs.length) { out.push(studyPairsToPdf(studyPairs)); studyPairs = []; }
+  };
+
   for (const block of blocks) {
     const inline = Array.isArray(block.content) ? inlineToPdf(block.content as InlineItem[]) : [];
     const childContent = block.children?.length ? blocksToPdfContent(block.children, depth + 1) : [];
+
+    if (block.type === "paragraph" && !childContent.length) {
+      const text = plainText(Array.isArray(block.content) ? (block.content as InlineItem[]) : []);
+      if (!text.trim()) continue; // parágrafo vazio (só espaçamento) — não quebra a tabela em andamento
+      const m = CARD_SEPARATOR.exec(text);
+      if (m) {
+        const front = text.slice(0, m.index).trim();
+        const back = text.slice(m.index + m[0].length).trim();
+        if (front) {
+          studyPairs.push({ front, back });
+          continue;
+        }
+      }
+    }
+    flushStudyPairs();
 
     switch (block.type) {
       case "bulletListItem":
@@ -167,6 +213,7 @@ export function blocksToPdfContent(blocks: BNBlock[], depth = 0): any[] {
     }
   }
   flush();
+  flushStudyPairs();
   return out;
 }
 

@@ -12,6 +12,15 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.10.0",
+    date: "2026-07-27",
+    title: "Numeração de linhas + tabelas automáticas no PDF",
+    items: [
+      "Novo botão \"#\" na barra do editor liga/desliga a numeração de linhas na margem esquerda",
+      "Exportar PDF (página ou pasta como livro): parágrafos no padrão \"frase - tradução\" (o mesmo do import de flashcards) agora viram uma tabela de 2 colunas automaticamente, uma tabela por título",
+    ],
+  },
+  {
     version: "1.9.0",
     date: "2026-07-22",
     title: "Ações de IA no editor + som no Arcade",

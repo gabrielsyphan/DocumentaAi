@@ -24,7 +24,7 @@ import FindInPageBar from "./FindInPageBar";
 import AIContinueModal from "./AIContinueModal";
 import { fetchFlashcardsByPage } from "../../lib/db";
 import type { Flashcard } from "../../types";
-import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2, Zap, Sparkles } from "lucide-react";
+import { FileDown, FileText, Printer, BookTemplate, X as XIcon, Tag, Volume2, Pause, Play, Square, Maximize2, History, Link2, RotateCcw, HelpCircle, Presentation, ChevronLeft, ChevronRight, Bell, BellOff, Scissors, CalendarClock, CalendarDays, BookOpen, PenTool, Trash2, Zap, Sparkles, Hash } from "lucide-react";
 
 // ── Shiki singleton para slides (separado do highlighter do editor) ───────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -394,7 +394,7 @@ const makeHighlighter: CodeBlockOptions["createHighlighter"] = () =>
 
 export default function Editor({ pageId }: Props) {
   const { pages, updatePage } = usePagesStore();
-  const { theme, toggleFocusMode, pendingFindQuery, setPendingFindQuery } = useUIStore();
+  const { theme, toggleFocusMode, pendingFindQuery, setPendingFindQuery, lineNumbers, toggleLineNumbers } = useUIStore();
   const tts = useTTS();
   const isMobile = useIsMobile();
   const page = pages.find((p) => p.id === pageId);
@@ -617,6 +617,7 @@ export default function Editor({ pageId }: Props) {
     return () => document.removeEventListener("mousedown", close);
   }, [showExport]);
 
+
   function handleExportMd() {
     setShowExport(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -818,6 +819,13 @@ export default function Editor({ pageId }: Props) {
               <Maximize2 size={15} />
             </button>
             <button
+              className={`topbar-action-btn${lineNumbers ? " active" : ""}`}
+              onClick={toggleLineNumbers}
+              title="Numeração de linhas"
+            >
+              <Hash size={15} />
+            </button>
+            <button
               className="topbar-action-btn"
               onClick={() => setShowExport((v) => !v)}
               title="Exportar página"
@@ -880,7 +888,13 @@ export default function Editor({ pageId }: Props) {
           <DailyAgenda date={page.title} />
         )}
 
-        <BlockNoteView editor={editor} theme={theme === "light" ? "light" : "dark"} formattingToolbar={false} slashMenu={false}>
+        <BlockNoteView
+          editor={editor}
+          theme={theme === "light" ? "light" : "dark"}
+          formattingToolbar={false}
+          slashMenu={false}
+          className={lineNumbers ? "la-line-numbers" : undefined}
+        >
           <FormattingToolbarController formattingToolbar={StableFormattingToolbar} />
           {/* Slash menu personalizado com snippets */}
           <SuggestionMenuController
