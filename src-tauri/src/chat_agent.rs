@@ -10,6 +10,55 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
+/// Remove ANSI escape sequences (cores, cursor, etc.) de uma string.
+/// Cobre CSI sequences (\x1b[...X), OSC (\x1b]...BEL/ST) e escapes simples (\x1bX).
+fn strip_ansi(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            match chars.peek() {
+                Some('[') => {
+                    chars.next(); // consume '['
+                    // CSI: consume tudo até letra ASCII final (0x40-0x7E)
+                    while let Some(&ch) = chars.peek() {
+                        chars.next();
+                        if ch.is_ascii() && (0x40..=0x7E).contains(&(ch as u8)) {
+                            break;
+                        }
+                    }
+                }
+                Some(']') => {
+                    chars.next(); // consume ']'
+                    // OSC: consume até BEL (\x07) ou ST (\x1b\\)
+                    while let Some(&ch) = chars.peek() {
+                        if ch == '\x07' {
+                            chars.next();
+                            break;
+                        }
+                        if ch == '\x1b' {
+                            chars.next();
+                            if chars.peek() == Some(&'\\') {
+                                chars.next();
+                            }
+                            break;
+                        }
+                        chars.next();
+                    }
+                }
+                Some(_) => {
+                    // Escape simples de 2 bytes (ex: \x1b=, \x1b>)
+                    chars.next();
+                }
+                None => {}
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 pub struct ChatState(pub Arc<Mutex<Option<Child>>>);
 
 impl Default for ChatState {
@@ -28,6 +77,10 @@ const SYSTEM_PROMPT: &str = "Você é o assistente da base de conhecimento do Do
 Antes de responder, consulte a base com a tool mcp__documentaai__search_knowledge — pode buscar várias vezes com termos diferentes. \
 Cite sempre os títulos das páginas-fonte. Se a base não contém a resposta, diga isso claramente em vez de inventar. \
 Responda em português, de forma direta e concisa.";
+
+/// Nome do agent config criado em ~/.kiro/agents/ para restringir o Kiro às
+/// ferramentas MCP do DocumentaAI (sem glob, grep, shell, etc.)
+const KIRO_AGENT_NAME: &str = "documentaai_chat";
 
 // ── Resolução de binários ─────────────────────────────────────────────────────
 // Apps GUI no macOS não herdam o PATH do shell — procura em locais comuns.
@@ -112,12 +165,19 @@ pub fn chat_agent_check(
     mcp_path_override: Option<String>,
 ) -> EngineCheck {
     let bin = resolve_bin(engine_bin_name(&engine));
-    let mcp = resolve_mcp_path(&app, mcp_path_override.as_deref());
+    // Kiro usa sua própria configuração MCP global (~/.kiro/settings/mcp.json),
+    // portanto não depende do mcp-server local para funcionar.
+    let (mcp_ok, mcp_path) = if engine == "kiro" {
+        (true, None)
+    } else {
+        let mcp = resolve_mcp_path(&app, mcp_path_override.as_deref());
+        (mcp.is_some(), mcp)
+    };
     EngineCheck {
         available: bin.is_some(),
         bin_path: bin,
-        mcp_ok: mcp.is_some(),
-        mcp_path: mcp,
+        mcp_ok,
+        mcp_path,
     }
 }
 
@@ -235,7 +295,13 @@ pub fn chat_agent_send(
     }
 
     if engine == "kiro" {
-        cmd.args(["chat", "--no-interactive", &prompt]);
+        cmd.args([
+            "chat",
+            "--no-interactive",
+            "--agent", KIRO_AGENT_NAME,
+            "--trust-all-tools",
+            &prompt,
+        ]);
     } else {
         let mcp_path = resolve_mcp_path(&app, mcp_path_override.as_deref())
             .ok_or("Caminho do mcp-server não encontrado. Configure-o nas opções do chat.")?;
@@ -282,6 +348,7 @@ pub fn chat_agent_send(
     let child_slot = state.0.clone();
     let app_out = app.clone();
     let app_done = app;
+    let is_kiro = engine == "kiro";
 
     // stderr em thread própria — vira o detalhe do erro se o processo falhar
     let stderr_buf: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
@@ -302,7 +369,45 @@ pub fn chat_agent_send(
 
     std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            let _ = app_out.emit("chat-agent-line", &line);
+            if is_kiro {
+                // Kiro emite texto com ANSI escape codes — remove antes de enviar
+                let clean = strip_ansi(&line);
+                // Pula linhas puramente decorativas/meta do kiro-cli
+                let trimmed = clean.trim();
+                if trimmed.is_empty()
+                    || trimmed.starts_with("⏱ Time:")
+                    || trimmed.starts_with("▸ Time:")
+                    || trimmed.starts_with("✓ Successfully")
+                    || trimmed.starts_with("- Completed in")
+                    || trimmed.starts_with("All tools are now trusted")
+                    || trimmed.starts_with("Agents can sometimes")
+                    || trimmed.starts_with("Learn more at")
+                    || trimmed.starts_with("Running tool")
+                    || trimmed.starts_with("⏳")
+                    || trimmed.starts_with("⋮")
+                    || trimmed == ">"
+                {
+                    continue;
+                }
+                // Remove o prefixo "> " que o Kiro usa como indicador de resposta
+                let text = if trimmed.starts_with("> ") {
+                    trimmed.strip_prefix("> ").unwrap_or(trimmed).to_string()
+                } else {
+                    clean
+                };
+                // Filtra linhas de informação de ferramentas (usando tool: ...)
+                if text.contains("(using tool:") || text.contains("(from mcp server:") {
+                    continue;
+                }
+                // Pula linhas que são apenas JSON de parâmetros de tool (ex: "⏵  {}")
+                let text_trimmed = text.trim();
+                if text_trimmed.starts_with("⏵") {
+                    continue;
+                }
+                let _ = app_out.emit("chat-agent-line", &text);
+            } else {
+                let _ = app_out.emit("chat-agent-line", &line);
+            }
         }
         // stdout fechou → processo terminou (ou foi morto)
         let code = {

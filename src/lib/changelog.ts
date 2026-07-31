@@ -12,6 +12,16 @@ export interface ReleaseNote {
 
 export const CHANGELOG: ReleaseNote[] = [
   {
+    version: "1.10.1",
+    date: "2026-07-31",
+    title: "Corrige chat com Kiro CLI",
+    items: [
+      "Chat via Kiro CLI: respostas não mostram mais códigos ANSI — o texto sai limpo e legível",
+      "Chat via Kiro CLI: agora usa exclusivamente as ferramentas MCP do DocumentaAI (search_knowledge, get_page, etc.) em vez de ferramentas genéricas como glob/grep",
+      "Adicionada dependência nativa do Tailwind CSS para Linux x64 (resolve erro de binding em algumas distros)",
+    ],
+  },
+  {
     version: "1.10.0",
     date: "2026-07-27",
     title: "Numeração de linhas + tabelas automáticas no PDF",
